@@ -21,12 +21,12 @@
 <table>
     <thead>
         <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Race</th>
-            <th>Caste</th>
-            <th>Born</th>
-            <th>Died</th>
+            <th class="sortable{% if sort == 'id' %} sorted {{ dir }}{% endif %}" data-sort="id">ID</th>
+            <th class="sortable{% if sort == 'name' %} sorted {{ dir }}{% endif %}" data-sort="name">Name</th>
+            <th class="sortable{% if sort == 'race' %} sorted {{ dir }}{% endif %}" data-sort="race">Race</th>
+            <th class="sortable{% if sort == 'caste' %} sorted {{ dir }}{% endif %}" data-sort="caste">Caste</th>
+            <th class="sortable{% if sort == 'birth_year' %} sorted {{ dir }}{% endif %}" data-sort="birth_year">Born</th>
+            <th class="sortable{% if sort == 'death_year' %} sorted {{ dir }}{% endif %}" data-sort="death_year">Died</th>
             <th>Age</th>
         </tr>
     </thead>
@@ -34,7 +34,7 @@
         {% for fig in figures %}
         <tr>
             <td>{{ fig.id }}</td>
-            <td>{{ fig.name or '(unnamed)' }}</td>
+            <td>{{ fig.name|title if fig.name else '(unnamed)' }}</td>
             <td class="race-cell">{% set ri = get_race_info(fig.race) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}</td>
             <td>{{ fig.caste or '-' }}</td>
             <td>{{ fig.birth_year if fig.birth_year else '-' }}</td>
@@ -46,7 +46,7 @@
 </table>
 
 <div class="pagination" id="pagination">
-    {{ pagination(page, total_pages, '?q=' ~ search ~ '&race=' ~ race_filter) }}
+    {{ pagination(page, total_pages, '?q=' ~ search ~ '&race=' ~ race_filter ~ '&sort=' ~ sort ~ '&dir=' ~ dir) }}
 </div>
 
 <script>
@@ -54,6 +54,7 @@
     var searchInput = document.getElementById('search-input');
     var raceSelect = document.getElementById('race-select');
     var tbody = document.getElementById('figures-tbody');
+    var thead = document.querySelector('table thead');
     var showingCount = document.getElementById('showing-count');
     var totalCount = document.getElementById('total-count');
     var paginationContainer = document.getElementById('pagination');
@@ -61,12 +62,14 @@
     var timeout = null;
     var currentPage = {{ page }};
     var perPage = {{ per_page }};
+    var currentSort = '{{ sort }}';
+    var currentDir = '{{ dir }}';
 
     function formatNumber(n) {
         return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
 
-    function renderPagination(page, totalPages, baseUrl) {
+    function renderPagination(page, totalPages) {
         var html = '<div class="pagination">';
 
         // First and Previous
@@ -113,11 +116,22 @@
         return html;
     }
 
-    function fetchData(page) {
+    function updateSortHeaders(sortCol, sortDir) {
+        thead.querySelectorAll('th.sortable').forEach(function(th) {
+            th.classList.remove('sorted', 'asc', 'desc');
+            if (th.dataset.sort === sortCol) {
+                th.classList.add('sorted', sortDir);
+            }
+        });
+    }
+
+    function fetchData(page, sort, dir) {
         var params = new URLSearchParams();
         params.set('page', page);
         if (searchInput.value) params.set('q', searchInput.value);
         if (raceSelect.value) params.set('race', raceSelect.value);
+        params.set('sort', sort);
+        params.set('dir', dir);
 
         // Update URL without reload
         history.replaceState(null, '', '?' + params.toString());
@@ -128,13 +142,20 @@
         .then(function(response) { return response.json(); })
         .then(function(data) {
             currentPage = data.page;
+            currentSort = data.sort;
+            currentDir = data.dir;
+
+            function titleCase(str) {
+                if (!str) return '(unnamed)';
+                return str.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            }
 
             // Update table
             var html = '';
             data.figures.forEach(function(fig) {
                 html += '<tr>' +
                     '<td>' + fig.id + '</td>' +
-                    '<td>' + (fig.name || '(unnamed)') + '</td>' +
+                    '<td>' + titleCase(fig.name) + '</td>' +
                     '<td class="race-cell">' + (fig.race_img ? '<img src="' + fig.race_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + fig.race_icon + '</span>') + ' ' + fig.race_label + '</td>' +
                     '<td>' + (fig.caste || '-') + '</td>' +
                     '<td>' + (fig.birth_year != null ? fig.birth_year : '-') + '</td>' +
@@ -149,26 +170,42 @@
             totalCount.textContent = formatNumber(data.total);
 
             // Update pagination
-            paginationContainer.innerHTML = renderPagination(data.page, data.total_pages, '');
+            paginationContainer.innerHTML = renderPagination(data.page, data.total_pages);
+
+            // Update sort headers
+            updateSortHeaders(data.sort, data.dir);
         });
     }
 
     searchInput.addEventListener('input', function() {
         clearTimeout(timeout);
         timeout = setTimeout(function() {
-            fetchData(1);
+            fetchData(1, currentSort, currentDir);
         }, 300);
     });
 
     raceSelect.addEventListener('change', function() {
-        fetchData(1);
+        fetchData(1, currentSort, currentDir);
     });
 
     paginationContainer.addEventListener('click', function(e) {
         var target = e.target.closest('[data-page]');
         if (target) {
             e.preventDefault();
-            fetchData(parseInt(target.dataset.page));
+            fetchData(parseInt(target.dataset.page), currentSort, currentDir);
+        }
+    });
+
+    thead.addEventListener('click', function(e) {
+        var th = e.target.closest('th.sortable');
+        if (th) {
+            var col = th.dataset.sort;
+            var newDir = 'asc';
+            // If clicking the same column, toggle direction
+            if (col === currentSort) {
+                newDir = currentDir === 'asc' ? 'desc' : 'asc';
+            }
+            fetchData(1, col, newDir);
         }
     });
 })();

@@ -350,6 +350,17 @@ def figures():
     search = request.args.get('q', '')
     race_filter = request.args.get('race', '')
 
+    # Sorting
+    sort_col = request.args.get('sort', 'name')
+    sort_dir = request.args.get('dir', 'asc')
+
+    # Validate sort column and direction
+    valid_columns = ['id', 'name', 'race', 'caste', 'birth_year', 'death_year']
+    if sort_col not in valid_columns:
+        sort_col = 'name'
+    if sort_dir not in ['asc', 'desc']:
+        sort_dir = 'asc'
+
     query = "SELECT * FROM historical_figures WHERE 1=1"
     count_query = "SELECT COUNT(*) FROM historical_figures WHERE 1=1"
     params = []
@@ -367,7 +378,13 @@ def figures():
         params.append(race_filter)
         count_params.append(race_filter)
 
-    query += " ORDER BY id LIMIT ? OFFSET ?"
+    # Handle NULL sorting (NULLs last for ASC, first for DESC)
+    if sort_dir == 'asc':
+        query += f" ORDER BY {sort_col} IS NULL, {sort_col} ASC"
+    else:
+        query += f" ORDER BY {sort_col} IS NOT NULL, {sort_col} DESC"
+
+    query += " LIMIT ? OFFSET ?"
     params.extend([per_page, offset])
 
     figures_data = db.execute(query, params).fetchall()
@@ -402,7 +419,9 @@ def figures():
             'total_pages': total_pages,
             'page': page,
             'per_page': per_page,
-            'current_year': current_year
+            'current_year': current_year,
+            'sort': sort_col,
+            'dir': sort_dir
         })
 
     # Get unique races for filter
@@ -417,7 +436,9 @@ def figures():
                          search=search,
                          race_filter=race_filter,
                          races=races,
-                         current_year=current_year)
+                         current_year=current_year,
+                         sort=sort_col,
+                         dir=sort_dir)
 
 
 @app.route('/sites')
