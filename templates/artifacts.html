@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "base.html" import pagination with context %}
+
+{% block title %}Artifacts - DF-World{% endblock %}
+
+{% block content %}
+<h1>Artifacts</h1>
+
+<form class="filters" method="get" id="filter-form">
+    <input type="text" name="q" placeholder="Search..." value="{{ search }}" id="search-input">
+    <select name="type" onchange="this.form.submit()">
+        <option value="">All Types</option>
+        {% for t in types %}
+        <option value="{{ t.item_type }}" {% if type_filter == t.item_type %}selected{% endif %}>{{ t.item_type|replace('_', ' ')|title }}</option>
+        {% endfor %}
+    </select>
+    <a href="{{ url_for('artifacts') }}" class="btn btn-clear{% if not search and not type_filter %} disabled{% endif %}">Clear</a>
+</form>
+
+<script>
+(function() {
+    var searchInput = document.getElementById('search-input');
+    var form = document.getElementById('filter-form');
+    var timeout = null;
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(function() {
+            form.submit();
+        }, 400);
+    });
+
+    // Restore cursor position after page reload
+    if (searchInput.value) {
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    }
+})();
+</script>
+
+<p class="results-info">Showing {{ artifacts|length }} of {{ "{:,}".format(total) }} artifacts</p>
+
+<table>
+    <thead>
+        <tr>
+            <th class="sortable{% if sort == 'id' %} sorted {{ dir }}{% endif %}" data-sort="id">ID</th>
+            <th class="sortable{% if sort == 'name' %} sorted {{ dir }}{% endif %}" data-sort="name">Name</th>
+            <th class="sortable{% if sort == 'item_type' %} sorted {{ dir }}{% endif %}{% if not has_plus %} col-disabled{% endif %}" data-sort="item_type">Type{% if not has_plus %}<span class="col-plus-badge" title="Requires DFHack legends_plus.xml">+</span>{% endif %}</th>
+            <th class="sortable{% if sort == 'mat' %} sorted {{ dir }}{% endif %}{% if not has_plus %} col-disabled{% endif %}" data-sort="mat">Material{% if not has_plus %}<span class="col-plus-badge" title="Requires DFHack legends_plus.xml">+</span>{% endif %}</th>
+            <th{% if not has_plus %} class="col-disabled"{% endif %}>Creator{% if not has_plus %}<span class="col-plus-badge" title="Requires DFHack legends_plus.xml">+</span>{% endif %}</th>
+            <th{% if not has_plus %} class="col-disabled"{% endif %}>Location{% if not has_plus %}<span class="col-plus-badge" title="Requires DFHack legends_plus.xml">+</span>{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for artifact in artifacts %}
+        <tr>
+            <td>{{ artifact.id }}</td>
+            <td class="artifact-name">{{ artifact.name|title if artifact.name else '-' }}</td>
+            <td>{{ artifact.item_type|replace('_', ' ')|title if artifact.item_type else '-' }}</td>
+            <td>{{ artifact.mat|replace('_', ' ')|title if artifact.mat else '-' }}</td>
+            <td>{{ artifact.creator_name|title if artifact.creator_name else '-' }}</td>
+            <td>
+                {% if artifact.holder_name %}
+                    <span class="holder">{{ artifact.holder_name|title }}</span>
+                {% elif artifact.site_name %}
+                    <span class="site">{{ artifact.site_name|title }}</span>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{{ pagination(page, total_pages, '?q=' ~ search ~ '&type=' ~ type_filter ~ '&sort=' ~ sort ~ '&dir=' ~ dir) }}
+
+<script>
+(function() {
+    var thead = document.querySelector('table thead');
+    var currentSort = '{{ sort }}';
+    var currentDir = '{{ dir }}';
+
+    thead.addEventListener('click', function(e) {
+        var th = e.target.closest('th.sortable');
+        if (th) {
+            var col = th.dataset.sort;
+            var newDir = 'asc';
+            if (col === currentSort) {
+                newDir = currentDir === 'asc' ? 'desc' : 'asc';
+            }
+            var params = new URLSearchParams(window.location.search);
+            params.set('sort', col);
+            params.set('dir', newDir);
+            params.set('page', '1');
+            window.location.search = params.toString();
+        }
+    });
+})();
+</script>
+{% endblock %}
