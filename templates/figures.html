@@ -41,7 +41,7 @@
         <tr class="figure-row" data-figure-id="{{ fig.id }}" data-link-count="{{ fig.link_count or 0 }}">
             <td class="expand-toggle"><span class="expand-icon{% if not fig.link_count %} no-links{% endif %}">+</span></td>
             <td>{{ fig.id }}</td>
-            <td>{{ fig.name|title if fig.name else '(unnamed)' }}</td>
+            <td><a href="#" class="entity-link" data-type="figure" data-id="{{ fig.id }}">{{ fig.name|title if fig.name else '(unnamed)' }}</a></td>
             <td class="race-cell">{% set ri = get_race_info(fig.race) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}</td>
             <td>{{ fig.caste or '-' }}</td>
             <td>{{ fig.birth_year if fig.birth_year else '-' }}</td>
@@ -279,7 +279,7 @@
                 html += '<tr class="figure-row" data-figure-id="' + fig.id + '" data-link-count="' + (fig.link_count || 0) + '">' +
                     '<td class="expand-toggle"><span class="expand-icon' + noLinks + '">+</span></td>' +
                     '<td>' + fig.id + '</td>' +
-                    '<td>' + titleCase(fig.name) + '</td>' +
+                    '<td><a href="#" class="entity-link" data-type="figure" data-id="' + fig.id + '">' + titleCase(fig.name) + '</a></td>' +
                     '<td class="race-cell">' + (fig.race_img ? '<img src="' + fig.race_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + fig.race_icon + '</span>') + ' ' + fig.race_label + '</td>' +
                     '<td>' + (fig.caste || '-') + '</td>' +
                     '<td>' + (fig.birth_year != null ? fig.birth_year : '-') + '</td>' +
