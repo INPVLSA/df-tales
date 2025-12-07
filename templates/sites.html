@@ -4,7 +4,7 @@
 {% block title %}Sites - DF-World{% endblock %}
 
 {% block content %}
-<h1>Sites</h1>
+<h1>Sites & structures</h1>
 
 <div class="filters">
     <input type="text" id="search-input" placeholder="Search by name..." value="{{ search }}">
@@ -22,21 +22,23 @@
 <table>
     <thead>
         <tr>
+            <th class="expand-col"></th>
             <th class="sortable{% if sort == 'id' %} sorted {{ dir }}{% endif %}" data-sort="id">ID</th>
             <th class="sortable{% if sort == 'name' %} sorted {{ dir }}{% endif %}" data-sort="name">Name</th>
             <th class="sortable{% if sort == 'type' %} sorted {{ dir }}{% endif %}" data-sort="type">Type</th>
             <th class="sortable{% if sort == 'coords' %} sorted {{ dir }}{% endif %}" data-sort="coords">Coords</th>
-            <th>Civ ID</th>
+            <th>Civilization</th>
         </tr>
     </thead>
     <tbody id="sites-tbody">
         {% for site in sites %}
-        <tr>
+        <tr class="site-row" data-site-id="{{ site.id }}" data-structure-count="{{ site.structure_count or 0 }}">
+            <td class="expand-toggle"><span class="expand-icon{% if not site.structure_count %} no-structures{% endif %}">+</span></td>
             <td>{{ site.id }}</td>
             <td>{{ site.name|title if site.name else '(unnamed)' }}</td>
             <td class="type-cell">{% set ti = get_site_type_info(site.type) %}{% if ti.img %}<img src="{{ ti.img }}" class="type-icon" alt="">{% else %}<span class="type-icon-text">{{ ti.icon }}</span>{% endif %} {{ ti.label }}</td>
             <td>{{ site.coords or '-' }}</td>
-            <td>{{ site.civ_id if site.civ_id else '-' }}</td>
+            <td class="race-cell">{% if site.civ_race %}{% set ri = get_race_info(site.civ_race|upper) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}{% else %}-{% endif %}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -62,6 +64,7 @@
     var perPage = {{ per_page }};
     var currentSort = '{{ sort }}';
     var currentDir = '{{ dir }}';
+    var expandedSites = {};
 
     function formatNumber(n) {
         return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -70,6 +73,53 @@
     function titleCase(str) {
         if (!str) return '(unnamed)';
         return str.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    }
+
+    function renderStructures(structures) {
+        if (!structures || structures.length === 0) {
+            return '<tr class="structures-row"><td colspan="6" class="structures-cell"><div class="structures-content"><em>No structures</em></div></td></tr>';
+        }
+        var html = '<tr class="structures-row"><td colspan="6" class="structures-cell"><div class="structures-content"><div class="structures-list">';
+        structures.forEach(function(s) {
+            var icon = s.type_img ? '<img src="' + s.type_img + '" class="structure-icon" alt="">' : '<span class="structure-icon-text">' + s.type_icon + '</span>';
+            var matchClass = s.matches ? ' structure-match' : '';
+            html += '<div class="structure-item' + matchClass + '">' + icon + ' <span class="structure-type">' + s.type_label + '</span>: <span class="structure-name">' + titleCase(s.name) + '</span></div>';
+        });
+        html += '</div></div></td></tr>';
+        return html;
+    }
+
+    function toggleStructures(siteRow) {
+        var siteId = siteRow.dataset.siteId;
+        var icon = siteRow.querySelector('.expand-icon');
+        var nextRow = siteRow.nextElementSibling;
+        var currentSearch = searchInput.value;
+
+        if (nextRow && nextRow.classList.contains('structures-row')) {
+            nextRow.remove();
+            icon.textContent = '+';
+            siteRow.classList.remove('expanded');
+            delete expandedSites[siteId];
+        } else {
+            icon.textContent = '-';
+            siteRow.classList.add('expanded');
+
+            // Always fetch fresh when there's a search to get match info
+            siteRow.insertAdjacentHTML('afterend', '<tr class="structures-row"><td colspan="6" class="structures-cell"><div class="structures-content"><em>Loading...</em></div></td></tr>');
+            var url = '/sites/' + siteId + '/structures';
+            if (currentSearch) {
+                url += '?q=' + encodeURIComponent(currentSearch);
+            }
+            fetch(url)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    expandedSites[siteId] = data.structures;
+                    var loadingRow = siteRow.nextElementSibling;
+                    if (loadingRow && loadingRow.classList.contains('structures-row')) {
+                        loadingRow.outerHTML = renderStructures(data.structures);
+                    }
+                });
+        }
     }
 
     function renderPagination(page, totalPages) {
@@ -143,15 +193,22 @@
             currentPage = data.page;
             currentSort = data.sort;
             currentDir = data.dir;
+            expandedSites = {};
 
             var html = '';
             data.sites.forEach(function(site) {
-                html += '<tr>' +
+                var civCell = '-';
+                if (site.civ_label) {
+                    civCell = (site.civ_img ? '<img src="' + site.civ_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + site.civ_icon + '</span>') + ' ' + site.civ_label;
+                }
+                var noStructures = !site.structure_count ? ' no-structures' : '';
+                html += '<tr class="site-row" data-site-id="' + site.id + '" data-structure-count="' + (site.structure_count || 0) + '">' +
+                    '<td class="expand-toggle"><span class="expand-icon' + noStructures + '">+</span></td>' +
                     '<td>' + site.id + '</td>' +
                     '<td>' + titleCase(site.name) + '</td>' +
                     '<td class="type-cell">' + (site.type_img ? '<img src="' + site.type_img + '" class="type-icon" alt="">' : '<span class="type-icon-text">' + site.type_icon + '</span>') + ' ' + site.type_label + '</td>' +
                     '<td>' + (site.coords || '-') + '</td>' +
-                    '<td>' + (site.civ_id != null ? site.civ_id : '-') + '</td>' +
+                    '<td class="race-cell">' + civCell + '</td>' +
                 '</tr>';
             });
             tbody.innerHTML = html;
@@ -205,6 +262,16 @@
                 newDir = currentDir === 'asc' ? 'desc' : 'asc';
             }
             fetchData(1, col, newDir);
+        }
+    });
+
+    tbody.addEventListener('click', function(e) {
+        var toggle = e.target.closest('.expand-toggle');
+        if (toggle) {
+            var siteRow = toggle.closest('.site-row');
+            if (siteRow && parseInt(siteRow.dataset.structureCount) > 0) {
+                toggleStructures(siteRow);
+            }
         }
     });
 })();

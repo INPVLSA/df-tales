@@ -49,6 +49,10 @@ Open http://localhost:5001 in your browser.
 
 Add PNG icons to `static/icons/races/` named by race code (e.g., `DWARF.png`). Falls back to ASCII symbols.
 
+## Support
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/inpvlsa)
+
 ## License
 
 [MIT](LICENSE)

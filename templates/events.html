@@ -11,7 +11,7 @@
     <select name="type" onchange="this.form.submit()">
         <option value="">All Types</option>
         {% for t in types %}
-        <option value="{{ t.type }}" {% if type_filter == t.type %}selected{% endif %}>{{ t.type }}</option>
+        <option value="{{ t.type }}" {% if type_filter == t.type %}selected{% endif %}>{{ t.type|event_type_label }}</option>
         {% endfor %}
     </select>
     <a href="{{ url_for('events') }}" class="btn btn-clear{% if not year_filter and not type_filter %} disabled{% endif %}">Clear</a>
@@ -49,7 +49,7 @@
         <tr>
             <td>{{ event.id }}</td>
             <td>{{ event.year if event.year else '-' }}</td>
-            <td>{{ event.type or '-' }}</td>
+            <td class="type-cell">{% set ei = get_event_type_info(event.type) %}<span class="type-icon-text">{{ ei.icon }}</span> {{ ei.label }}</td>
             <td>{{ event.site_id if event.site_id else '-' }}</td>
             <td>{{ event.hfid if event.hfid else '-' }}</td>
         </tr>

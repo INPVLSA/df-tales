@@ -187,6 +187,108 @@ SITE_TYPE_DATA = {
 # Site icons directory
 SITE_ICONS_DIR = BASE_DIR / "static" / "icons" / "sites"
 
+# Structure type labels mapping (icon, label)
+STRUCTURE_TYPE_DATA = {
+    'counting_house': ('$', 'Counting House'),
+    'dungeon': ('▓', 'Dungeon'),
+    'guildhall': ('☼', 'Guildhall'),
+    'inn_tavern': ('☺', 'Inn/Tavern'),
+    'keep': ('♜', 'Keep'),
+    'library': ('▒', 'Library'),
+    'market': ('○', 'Market'),
+    'mead_hall': ('▓', 'Mead Hall'),
+    'temple': ('†', 'Temple'),
+    'tomb': ('☠', 'Tomb'),
+    'tower': ('♜', 'Tower'),
+    'underworld_spire': ('▼', 'Underworld Spire'),
+}
+
+# Structure icons directory
+STRUCTURE_ICONS_DIR = BASE_DIR / "static" / "icons" / "structures"
+
+# Event type labels mapping (icon, label)
+EVENT_TYPE_DATA = {
+    'add_hf_entity_link': ('⚭', 'Joined Entity'),
+    'add_hf_hf_link': ('♥', 'Relationship Formed'),
+    'add_hf_site_link': ('⌂', 'Site Link Added'),
+    'artifact_created': ('★', 'Artifact Created'),
+    'assume_identity': ('?', 'Identity Assumed'),
+    'body_abused': ('†', 'Body Abused'),
+    'change_creature_type': ('∞', 'Creature Changed'),
+    'change_hf_job': ('☼', 'Job Changed'),
+    'change_hf_state': ('→', 'State Changed'),
+    'create_entity_position': ('♔', 'Position Created'),
+    'created_building': ('⌂', 'Building Created'),
+    'creature_devoured': ('☠', 'Creature Devoured'),
+    'entity_action': ('!', 'Entity Action'),
+    'hf_act_on_building': ('⌂', 'Building Action'),
+    'hf_does_interaction': ('✧', 'Interaction'),
+    'hf_learns_secret': ('?', 'Secret Learned'),
+    'hist_figure_died': ('☠', 'Death'),
+    'hist_figure_new_pet': ('♦', 'New Pet'),
+    'hist_figure_wounded': ('†', 'Wounded'),
+    'item_stolen': ('!', 'Item Stolen'),
+    'remove_hf_entity_link': ('⚭', 'Left Entity'),
+    'remove_hf_site_link': ('⌂', 'Site Link Removed'),
+    'replaced_building': ('⌂', 'Building Replaced'),
+    'war_peace_accepted': ('☮', 'Peace Accepted'),
+    'war_peace_rejected': ('⚔', 'Peace Rejected'),
+}
+
+
+def get_event_type_info(event_type):
+    """Get event type label and icon."""
+    if not event_type:
+        return {'label': '-', 'icon': '·'}
+
+    icon = '·'
+    label = None
+
+    # Check direct mapping
+    if event_type in EVENT_TYPE_DATA:
+        icon, label = EVENT_TYPE_DATA[event_type]
+
+    # Default: replace underscores and title case
+    if label is None:
+        label = event_type.replace('_', ' ').title()
+
+    return {'label': label, 'icon': icon}
+
+
+def format_event_type(event_type):
+    """Convert event type to readable label with icon."""
+    info = get_event_type_info(event_type)
+    if info['label'] == '-':
+        return '-'
+    return f"{info['icon']} {info['label']}"
+
+
+def get_structure_type_info(struct_type):
+    """Get structure type label, text icon, and image icon path."""
+    if not struct_type:
+        return {'label': '-', 'icon': '·', 'img': None}
+
+    icon = '·'
+    label = None
+    img = None
+
+    # Check for image icon
+    for ext in ['.png', '.gif']:
+        icon_path = STRUCTURE_ICONS_DIR / f"{struct_type}{ext}"
+        if icon_path.exists():
+            img = f'/static/icons/structures/{struct_type}{ext}'
+            break
+
+    # Check direct mapping
+    if struct_type in STRUCTURE_TYPE_DATA:
+        icon, label = STRUCTURE_TYPE_DATA[struct_type]
+
+    # Default: replace underscores and title case
+    if label is None:
+        label = struct_type.replace('_', ' ').title()
+
+    return {'label': label, 'icon': icon, 'img': img}
+
 
 def get_site_type_info(site_type):
     """Get site type label, text icon, and image icon path."""
@@ -273,8 +375,10 @@ app.secret_key = 'df-world-secret-key'
 # Register template filters
 app.jinja_env.filters['race_label'] = format_race
 app.jinja_env.filters['site_type_label'] = format_site_type
+app.jinja_env.filters['event_type_label'] = format_event_type
 app.jinja_env.globals['get_race_info'] = get_race_info
 app.jinja_env.globals['get_site_type_info'] = get_site_type_info
+app.jinja_env.globals['get_event_type_info'] = get_event_type_info
 
 
 def get_db():
@@ -537,28 +641,38 @@ def sites():
     if sort_dir not in ['asc', 'desc']:
         sort_dir = 'asc'
 
-    query = "SELECT * FROM sites WHERE 1=1"
+    query = """SELECT s.*, e.race as civ_race,
+               (SELECT COUNT(*) FROM structures st WHERE st.site_id = s.id) as structure_count
+               FROM sites s
+               LEFT JOIN entities e ON s.civ_id = e.id
+               WHERE 1=1"""
     count_query = "SELECT COUNT(*) FROM sites WHERE 1=1"
     params = []
     count_params = []
 
     if search:
-        query += " AND name LIKE ?"
-        count_query += " AND name LIKE ?"
-        params.append(f'%{search}%')
-        count_params.append(f'%{search}%')
+        # Search in site name OR structure names
+        query += """ AND (s.name LIKE ? OR s.id IN (
+            SELECT DISTINCT site_id FROM structures WHERE name LIKE ?
+        ))"""
+        count_query += """ AND (name LIKE ? OR id IN (
+            SELECT DISTINCT site_id FROM structures WHERE name LIKE ?
+        ))"""
+        params.extend([f'%{search}%', f'%{search}%'])
+        count_params.extend([f'%{search}%', f'%{search}%'])
 
     if type_filter:
-        query += " AND type = ?"
+        query += " AND s.type = ?"
         count_query += " AND type = ?"
         params.append(type_filter)
         count_params.append(type_filter)
 
     # Handle NULL sorting (NULLs last for ASC, first for DESC)
+    sort_prefix = "s." if sort_col in ['id', 'name', 'type', 'coords'] else ""
     if sort_dir == 'asc':
-        query += f" ORDER BY {sort_col} IS NULL, {sort_col} ASC"
+        query += f" ORDER BY {sort_prefix}{sort_col} IS NULL, {sort_prefix}{sort_col} ASC"
     else:
-        query += f" ORDER BY {sort_col} IS NOT NULL, {sort_col} DESC"
+        query += f" ORDER BY {sort_prefix}{sort_col} IS NOT NULL, {sort_prefix}{sort_col} DESC"
 
     query += " LIMIT ? OFFSET ?"
     params.extend([per_page, offset])
@@ -576,6 +690,17 @@ def sites():
             site['type_label'] = type_info['label']
             site['type_icon'] = type_info['icon']
             site['type_img'] = type_info['img']
+            # Add civ race info
+            civ_race = site.get('civ_race')
+            if civ_race:
+                race_info = get_race_info(civ_race.upper())
+                site['civ_label'] = race_info['label']
+                site['civ_icon'] = race_info['icon']
+                site['civ_img'] = race_info['img']
+            else:
+                site['civ_label'] = None
+                site['civ_icon'] = None
+                site['civ_img'] = None
             sites_list.append(site)
         return jsonify({
             'sites': sites_list,
@@ -601,6 +726,35 @@ def sites():
                          types=types,
                          sort=sort_col,
                          dir=sort_dir)
+
+
+@app.route('/sites/<int:site_id>/structures')
+def site_structures(site_id):
+    """Get structures for a specific site."""
+    db = get_db()
+    if not db:
+        return jsonify({'error': 'Database not found'}), 404
+
+    search = request.args.get('q', '')
+
+    structures = db.execute(
+        "SELECT * FROM structures WHERE site_id = ? ORDER BY type, name",
+        [site_id]
+    ).fetchall()
+
+    structures_list = []
+    for row in structures:
+        struct = dict(row)
+        type_info = get_structure_type_info(struct.get('type'))
+        struct['type_label'] = type_info['label']
+        struct['type_icon'] = type_info['icon']
+        struct['type_img'] = type_info['img']
+        # Mark if this structure matches the search
+        if search:
+            struct['matches'] = search.lower() in (struct.get('name') or '').lower()
+        structures_list.append(struct)
+
+    return jsonify({'structures': structures_list})
 
 
 @app.route('/events')
