@@ -279,27 +279,49 @@ td:nth-child(3) {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1rem;
+    gap: 0.25rem;
     margin-top: 2rem;
+    flex-wrap: wrap;
 }
 
-.pagination a {
+.pagination .page-btn,
+.pagination .page-num {
     font-family: 'Press Start 2P', monospace;
-    color: #0f0;
     text-decoration: none;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: #000;
-    border: 2px solid #0f0;
+    border: 2px solid #333;
     font-size: 10px;
+    color: #0f0;
+    min-width: 36px;
+    text-align: center;
+    display: inline-block;
 }
 
-.pagination a:hover {
+.pagination a.page-btn:hover,
+.pagination a.page-num:hover {
     background: #0f0;
     color: #000;
+    border-color: #0f0;
 }
 
-.pagination span {
+.pagination .page-num.active {
+    background: #0f0;
+    color: #000;
+    border-color: #0f0;
+}
+
+.pagination .page-btn.disabled {
+    color: #333;
+    border-color: #222;
+    cursor: not-allowed;
+}
+
+.pagination .page-ellipsis {
     color: #666;
+    padding: 0.5rem 0.5rem;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
 }
 
 /* Output */
