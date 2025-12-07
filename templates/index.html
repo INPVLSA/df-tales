@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - DF-World{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+{% if world %}
+<div class="world-info">
+    <h2>{{ world.name }}</h2>
+    <p class="altname">{{ world.altname }}</p>
+</div>
+{% else %}
+<div class="world-info empty">
+    <h2>No World Loaded</h2>
+    <p>Import your Dwarf Fortress legends data to get started.</p>
+</div>
+{% endif %}
+
+<div class="section">
+    <h3>Import Data</h3>
+
+    {% if has_xml %}
+    <p>XML files found:</p>
+    <ul>
+        {% for f in xml_files %}
+        <li>{{ f }}</li>
+        {% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('build') }}">
+        <button type="submit" class="btn btn-primary">Run Import</button>
+    </form>
+    <p class="hint">This will clear existing data and import fresh from XML files.</p>
+    {% else %}
+    <div class="alert alert-warning">
+        <p>No XML files found!</p>
+        <p>Please place your Dwarf Fortress legends XML files in the application directory:</p>
+        <code>~/df-world/</code>
+        <p>Expected files: <code>*legends.xml</code> and <code>*legends_plus.xml</code></p>
+    </div>
+    {% endif %}
+
+    <p><a href="{{ url_for('build_output') }}">View last import output</a></p>
+</div>
+
+{% if stats %}
+<div class="section">
+    <h3>Statistics</h3>
+    <div class="stats-grid">
+        {% for label, count in stats.items() %}
+        <div class="stat-card">
+            <div class="stat-value">{{ "{:,}".format(count) }}</div>
+            <div class="stat-label">{{ label }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

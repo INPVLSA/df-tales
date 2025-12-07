@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Sites - DF-World{% endblock %}
+
+{% block content %}
+<h1>Sites</h1>
+
+<form class="filters" method="get">
+    <select name="type" onchange="this.form.submit()">
+        <option value="">All Types</option>
+        {% for t in types %}
+        <option value="{{ t.type }}" {% if type_filter == t.type %}selected{% endif %}>{{ t.type }}</option>
+        {% endfor %}
+    </select>
+    <noscript><button type="submit" class="btn">Filter</button></noscript>
+</form>
+
+<p class="results-info">Showing {{ sites|length }} of {{ "{:,}".format(total) }} sites</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Coords</th>
+            <th>Civ ID</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for site in sites %}
+        <tr>
+            <td>{{ site.id }}</td>
+            <td>{{ site.name or '(unnamed)' }}</td>
+            <td>{{ site.type or '-' }}</td>
+            <td>{{ site.coords or '-' }}</td>
+            <td>{{ site.civ_id if site.civ_id else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}&type={{ type_filter }}">&larr; Previous</a>
+    {% endif %}
+
+    <span>Page {{ page }}</span>
+
+    {% if sites|length == per_page %}
+    <a href="?page={{ page + 1 }}&type={{ type_filter }}">Next &rarr;</a>
+    {% endif %}
+</div>
+{% endblock %}

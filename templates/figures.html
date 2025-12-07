@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Historical Figures - DF-World{% endblock %}
+
+{% block content %}
+<h1>Historical Figures</h1>
+
+<div class="filters">
+    <input type="text" id="search-input" placeholder="Search by name..." value="{{ search }}">
+    <select id="race-select">
+        <option value="">All Races</option>
+        {% for r in races %}
+        <option value="{{ r.race }}" {% if race_filter == r.race %}selected{% endif %}>{{ r.race|race_label }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<p class="results-info">Showing <span id="showing-count">{{ figures|length }}</span> of <span id="total-count">{{ "{:,}".format(total) }}</span> figures</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Race</th>
+            <th>Caste</th>
+            <th>Born</th>
+            <th>Died</th>
+        </tr>
+    </thead>
+    <tbody id="figures-tbody">
+        {% for fig in figures %}
+        <tr>
+            <td>{{ fig.id }}</td>
+            <td>{{ fig.name or '(unnamed)' }}</td>
+            <td class="race-cell">{% set ri = get_race_info(fig.race) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}</td>
+            <td>{{ fig.caste or '-' }}</td>
+            <td>{{ fig.birth_year if fig.birth_year else '-' }}</td>
+            <td>{% if fig.death_year == -1 %}<span class="alive">Alive</span>{% else %}{{ fig.death_year if fig.death_year else '-' }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination" id="pagination">
+    {% if page > 1 %}
+    <a href="#" data-page="{{ page - 1 }}" class="page-link">&larr; Previous</a>
+    {% endif %}
+
+    <span>Page <span id="current-page">{{ page }}</span></span>
+
+    {% if figures|length == per_page %}
+    <a href="#" data-page="{{ page + 1 }}" class="page-link">Next &rarr;</a>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    var searchInput = document.getElementById('search-input');
+    var raceSelect = document.getElementById('race-select');
+    var tbody = document.getElementById('figures-tbody');
+    var showingCount = document.getElementById('showing-count');
+    var totalCount = document.getElementById('total-count');
+    var pagination = document.getElementById('pagination');
+    var currentPageSpan = document.getElementById('current-page');
+
+    var timeout = null;
+    var currentPage = {{ page }};
+    var perPage = {{ per_page }};
+
+    function formatNumber(n) {
+        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function fetchData(page) {
+        var params = new URLSearchParams();
+        params.set('page', page);
+        if (searchInput.value) params.set('q', searchInput.value);
+        if (raceSelect.value) params.set('race', raceSelect.value);
+
+        // Update URL without reload
+        history.replaceState(null, '', '?' + params.toString());
+
+        fetch('/figures?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            currentPage = data.page;
+
+            // Update table
+            var html = '';
+            data.figures.forEach(function(fig) {
+                html += '<tr>' +
+                    '<td>' + fig.id + '</td>' +
+                    '<td>' + (fig.name || '(unnamed)') + '</td>' +
+                    '<td class="race-cell">' + (fig.race_img ? '<img src="' + fig.race_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + fig.race_icon + '</span>') + ' ' + fig.race_label + '</td>' +
+                    '<td>' + (fig.caste || '-') + '</td>' +
+                    '<td>' + (fig.birth_year != null ? fig.birth_year : '-') + '</td>' +
+                    '<td>' + (fig.death_year === -1 ? '<span class="alive">Alive</span>' : (fig.death_year != null ? fig.death_year : '-')) + '</td>' +
+                '</tr>';
+            });
+            tbody.innerHTML = html;
+
+            // Update counts
+            showingCount.textContent = data.figures.length;
+            totalCount.textContent = formatNumber(data.total);
+            currentPageSpan.textContent = data.page;
+
+            // Update pagination
+            var paginationHtml = '';
+            if (data.page > 1) {
+                paginationHtml += '<a href="#" data-page="' + (data.page - 1) + '" class="page-link">&larr; Previous</a>';
+            }
+            paginationHtml += '<span>Page <span id="current-page">' + data.page + '</span></span>';
+            if (data.figures.length === data.per_page) {
+                paginationHtml += '<a href="#" data-page="' + (data.page + 1) + '" class="page-link">Next &rarr;</a>';
+            }
+            pagination.innerHTML = paginationHtml;
+        });
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(function() {
+            fetchData(1);
+        }, 300);
+    });
+
+    raceSelect.addEventListener('change', function() {
+        fetchData(1);
+    });
+
+    pagination.addEventListener('click', function(e) {
+        if (e.target.classList.contains('page-link')) {
+            e.preventDefault();
+            fetchData(parseInt(e.target.dataset.page));
+        }
+    });
+})();
+</script>
+{% endblock %}
