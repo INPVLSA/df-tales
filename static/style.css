@@ -33,6 +33,7 @@ nav {
     border-bottom: 2px solid #333;
     font-family: 'Press Start 2P', monospace;
     font-size: 10px;
+    min-height: 46px;
 }
 
 .nav-container {
@@ -43,6 +44,7 @@ nav {
     align-items: center;
     justify-content: flex-start;
     gap: 2rem;
+    min-height: 46px;
 }
 
 nav a {
@@ -56,6 +58,12 @@ nav a {
     margin-right: 2rem;
 }
 
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
 nav a:hover {
     color: #fff;
     text-shadow: 0 0 8px #ff0;
@@ -63,7 +71,8 @@ nav a:hover {
 
 .nav-icon {
     height: 20px;
-    width: auto;
+    width: 20px;
+    object-fit: contain;
     vertical-align: middle;
     margin-right: 0.5rem;
     image-rendering: pixelated;
@@ -84,8 +93,9 @@ nav a:hover {
     margin-right: 0.5rem;
 }
 
-.nav-hidden {
-    display: none;
+.nav-hidden,
+.nav-links .nav-hidden {
+    display: none !important;
 }
 
 /* Main Container */
