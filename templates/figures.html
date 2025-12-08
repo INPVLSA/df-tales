@@ -26,7 +26,6 @@
 <table>
     <thead>
         <tr>
-            <th class="expand-col"></th>
             <th class="sortable{% if sort == 'id' %} sorted {{ dir }}{% endif %}" data-sort="id">ID</th>
             <th class="sortable{% if sort == 'name' %} sorted {{ dir }}{% endif %}" data-sort="name">Name</th>
             <th class="sortable{% if sort == 'race' %} sorted {{ dir }}{% endif %}" data-sort="race">Race</th>
@@ -38,12 +37,11 @@
     </thead>
     <tbody id="figures-tbody">
         {% for fig in figures %}
-        <tr class="figure-row" data-figure-id="{{ fig.id }}" data-link-count="{{ fig.link_count or 0 }}">
-            <td class="expand-toggle"><span class="expand-icon{% if not fig.link_count %} no-links{% endif %}">+</span></td>
+        <tr class="figure-row" data-figure-id="{{ fig.id }}">
             <td>{{ fig.id }}</td>
             <td><a href="#" class="entity-link" data-type="figure" data-id="{{ fig.id }}">{{ fig.name|title if fig.name else '(unnamed)' }}</a></td>
             <td class="race-cell">{% set ri = get_race_info(fig.race) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}</td>
-            <td>{% if fig.caste and fig.caste|lower not in ['male', 'female', 'default'] %}{{ fig.caste }}{% else %}-{% endif %}</td>
+            <td>{% if fig.caste %}{{ fig.caste|title }}{% else %}-{% endif %}</td>
             <td>{{ fig.birth_year if fig.birth_year else '-' }}</td>
             <td>{% if fig.death_year == -1 %}<span class="alive">Alive</span>{% else %}{{ fig.death_year if fig.death_year else '-' }}{% endif %}</td>
             <td>{% if fig.birth_year and current_year %}{% if fig.death_year == -1 %}{{ current_year - fig.birth_year }}{% elif fig.death_year %}{{ fig.death_year - fig.birth_year }}{% else %}-{% endif %}{% else %}-{% endif %}</td>
@@ -73,8 +71,6 @@
     var perPage = {{ per_page }};
     var currentSort = '{{ sort }}';
     var currentDir = '{{ dir }}';
-    var expandedFigures = {};
-    var hasPlus = {{ 'true' if has_plus else 'false' }};
 
     function formatNumber(n) {
         return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -83,115 +79,6 @@
     function titleCase(str) {
         if (!str) return '(unnamed)';
         return str.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-    }
-
-    function formatLinkType(linkType) {
-        if (!linkType) return 'Member';
-        return linkType.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-    }
-
-    var COLLAPSED_LIMIT = 5;
-    var expandGroupId = 0;
-
-    function renderFigureDetails(affiliations, siteLinks) {
-        var hasAffiliations = affiliations && affiliations.length > 0;
-        var hasSiteLinks = siteLinks && siteLinks.length > 0;
-
-        if (!hasAffiliations && !hasSiteLinks) {
-            return '<tr class="affiliations-row"><td colspan="8" class="affiliations-cell"><div class="affiliations-content"><em>No affiliations or site links</em></div></td></tr>';
-        }
-
-        var html = '<tr class="affiliations-row"><td colspan="8" class="affiliations-cell"><div class="affiliations-content">';
-
-        // Check if any affiliation is missing entity name (no DFHack data)
-        var missingNames = hasAffiliations && affiliations.some(function(aff) { return !aff.entity_name; });
-        if (missingNames && !hasPlus) {
-            html += '<div class="affiliations-note"><span class="missing-icon">!</span> Entity names require DFHack <code>legends_plus.xml</code>. <a href="/">Merge DFHack data</a> to see full details.</div>';
-        }
-
-        // Entity affiliations - grouped by link type
-        if (hasAffiliations) {
-            html += '<div class="details-section"><div class="details-header">Affiliations</div>';
-
-            // Group by link_type
-            var grouped = {};
-            affiliations.forEach(function(aff) {
-                var lt = aff.link_type || 'member';
-                if (!grouped[lt]) grouped[lt] = [];
-                grouped[lt].push(aff);
-            });
-
-            // Render each group
-            Object.keys(grouped).forEach(function(linkType) {
-                var items = grouped[linkType];
-                var groupId = 'aff-group-' + (++expandGroupId);
-                var linkTypeLabel = formatLinkType(linkType);
-
-                html += '<div class="link-type-group"><span class="link-type-label">' + linkTypeLabel + ' (' + items.length + ')</span>';
-                html += '<div class="affiliations-list">';
-
-                items.forEach(function(aff, idx) {
-                    var entityName = aff.entity_name ? titleCase(aff.entity_name) : 'Entity #' + aff.entity_id;
-                    var entityType = aff.entity_type ? ' <span class="entity-type">(' + aff.entity_type + ')</span>' : '';
-                    var hiddenClass = idx >= COLLAPSED_LIMIT ? ' hidden-item ' + groupId : '';
-                    html += '<div class="affiliation-item' + hiddenClass + '">' + entityName + entityType + '</div>';
-                });
-
-                html += '</div>';
-
-                if (items.length > COLLAPSED_LIMIT) {
-                    var remaining = items.length - COLLAPSED_LIMIT;
-                    html += '<a href="#" class="show-more-link" data-group="' + groupId + '" data-showing="collapsed">Show ' + remaining + ' more</a>';
-                }
-
-                html += '</div>';
-            });
-
-            html += '</div>';
-        }
-
-        // Site links - simple list (no grouping/collapsing since counts are low)
-        if (hasSiteLinks) {
-            html += '<div class="details-section"><div class="details-header">Site Links</div>';
-            html += '<div class="affiliations-list">';
-            siteLinks.forEach(function(sl) {
-                var siteName = sl.site_name ? titleCase(sl.site_name) : 'Site #' + sl.site_id;
-                var siteIcon = sl.site_type_img ? '<img src="' + sl.site_type_img + '" class="site-link-icon" alt="">' : '<span class="site-link-icon-text">' + sl.site_type_icon + '</span>';
-                var linkType = formatLinkType(sl.link_type);
-                html += '<div class="affiliation-item">' + siteIcon + ' <span class="link-type">' + linkType + '</span>: ' + siteName + '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        html += '</div></td></tr>';
-        return html;
-    }
-
-    function toggleAffiliations(figureRow) {
-        var figureId = figureRow.dataset.figureId;
-        var icon = figureRow.querySelector('.expand-icon');
-        var nextRow = figureRow.nextElementSibling;
-
-        if (nextRow && nextRow.classList.contains('affiliations-row')) {
-            nextRow.remove();
-            icon.textContent = '+';
-            figureRow.classList.remove('expanded');
-            delete expandedFigures[figureId];
-        } else {
-            icon.textContent = '-';
-            figureRow.classList.add('expanded');
-
-            figureRow.insertAdjacentHTML('afterend', '<tr class="affiliations-row"><td colspan="8" class="affiliations-cell"><div class="affiliations-content"><em>Loading...</em></div></td></tr>');
-            fetch('/figures/' + figureId + '/affiliations')
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    expandedFigures[figureId] = data;
-                    var loadingRow = figureRow.nextElementSibling;
-                    if (loadingRow && loadingRow.classList.contains('affiliations-row')) {
-                        loadingRow.outerHTML = renderFigureDetails(data.affiliations, data.site_links);
-                    }
-                });
-        }
     }
 
     function renderPagination(page, totalPages) {
@@ -270,18 +157,15 @@
             currentPage = data.page;
             currentSort = data.sort;
             currentDir = data.dir;
-            expandedFigures = {};
 
             // Update table
             var html = '';
             data.figures.forEach(function(fig) {
-                var noLinks = !fig.link_count ? ' no-links' : '';
-                html += '<tr class="figure-row" data-figure-id="' + fig.id + '" data-link-count="' + (fig.link_count || 0) + '">' +
-                    '<td class="expand-toggle"><span class="expand-icon' + noLinks + '">+</span></td>' +
+                html += '<tr class="figure-row" data-figure-id="' + fig.id + '">' +
                     '<td>' + fig.id + '</td>' +
                     '<td><a href="#" class="entity-link" data-type="figure" data-id="' + fig.id + '">' + titleCase(fig.name) + '</a></td>' +
                     '<td class="race-cell">' + (fig.race_img ? '<img src="' + fig.race_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + fig.race_icon + '</span>') + ' ' + fig.race_label + '</td>' +
-                    '<td>' + (fig.caste && ['male', 'female', 'default'].indexOf(fig.caste.toLowerCase()) === -1 ? fig.caste : '-') + '</td>' +
+                    '<td>' + (fig.caste ? titleCase(fig.caste) : '-') + '</td>' +
                     '<td>' + (fig.birth_year != null ? fig.birth_year : '-') + '</td>' +
                     '<td>' + (fig.death_year === -1 ? '<span class="alive">Alive</span>' : (fig.death_year != null ? fig.death_year : '-')) + '</td>' +
                     '<td>' + (fig.age != null ? fig.age : '-') + '</td>' +
@@ -352,42 +236,6 @@
     searchInput.addEventListener('input', updateClearButton);
     raceSelect.addEventListener('change', updateClearButton);
     aliveCheckbox.addEventListener('change', updateClearButton);
-
-    tbody.addEventListener('click', function(e) {
-        var toggle = e.target.closest('.expand-toggle');
-        if (toggle) {
-            var figureRow = toggle.closest('.figure-row');
-            if (figureRow && parseInt(figureRow.dataset.linkCount) > 0) {
-                toggleAffiliations(figureRow);
-            }
-        }
-
-        // Handle "Show N more" links
-        var showMoreLink = e.target.closest('.show-more-link');
-        if (showMoreLink) {
-            e.preventDefault();
-            e.stopPropagation();
-            var groupId = showMoreLink.dataset.group;
-            var isCollapsed = showMoreLink.dataset.showing === 'collapsed';
-            var hiddenItems = document.querySelectorAll('.' + groupId);
-
-            hiddenItems.forEach(function(item) {
-                if (isCollapsed) {
-                    item.classList.remove('hidden-item');
-                } else {
-                    item.classList.add('hidden-item');
-                }
-            });
-
-            if (isCollapsed) {
-                showMoreLink.textContent = 'Show less';
-                showMoreLink.dataset.showing = 'expanded';
-            } else {
-                showMoreLink.textContent = 'Show ' + hiddenItems.length + ' more';
-                showMoreLink.dataset.showing = 'collapsed';
-            }
-        }
-    });
 })();
 </script>
 {% endblock %}

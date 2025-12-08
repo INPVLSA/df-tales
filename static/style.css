@@ -1658,11 +1658,20 @@ a:hover {
     image-rendering: pixelated;
 }
 
+/* Inline sprite in text (e.g., kill events) */
+.inline-sprite {
+    height: 14px;
+    width: auto;
+    margin-right: 4px;
+    vertical-align: middle;
+    image-rendering: pixelated;
+}
+
 /* Timeline (figure life events) */
 .timeline {
     max-height: 300px;
     overflow-y: auto;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .timeline-year {

@@ -1547,6 +1547,7 @@ def api_figure(figure_id):
 
     # Get life events (where this figure is involved)
     # hfid is direct column, other figure refs may be in extra_data JSON
+    # victim_hf is used for hist_figure_died events (victim stored in extra_data)
     events = db.execute("""
         SELECT e.*, s.name as site_name,
                slayer.name as slayer_name
@@ -1555,15 +1556,16 @@ def api_figure(figure_id):
         LEFT JOIN historical_figures slayer ON e.slayer_hfid = slayer.id
         WHERE e.hfid = ? OR e.slayer_hfid = ?
            OR e.extra_data LIKE ?
+           OR e.extra_data LIKE ?
         ORDER BY e.year ASC, e.id ASC
         LIMIT 100
-    """, [figure_id, figure_id, f'%"hfid2": {figure_id}%']).fetchall()
+    """, [figure_id, figure_id, f'%"hfid2": "{figure_id}"%', f'%"victim_hf": "{figure_id}"%']).fetchall()
 
     events_list = []
     for ev in events:
         ev_dict = dict(ev)
         ev_dict['type_label'] = get_event_type_info(ev_dict.get('type'))['label']
-        # Parse extra_data to get hfid2 name if present
+        # Parse extra_data to get hfid2 name and victim_hf name if present
         if ev_dict.get('extra_data'):
             try:
                 import json
@@ -1574,6 +1576,14 @@ def api_figure(figure_id):
                     if hf2:
                         ev_dict['hfid2'] = hfid2
                         ev_dict['hfid2_name'] = hf2['name']
+                # Get victim name and race for death events
+                victim_hf = extra.get('victim_hf')
+                if victim_hf:
+                    victim = db.execute("SELECT name, race FROM historical_figures WHERE id = ?", [victim_hf]).fetchone()
+                    if victim:
+                        ev_dict['victim_hfid'] = victim_hf
+                        ev_dict['victim_name'] = victim['name']
+                        ev_dict['victim_race'] = victim['race']
             except:
                 pass
         events_list.append(ev_dict)

@@ -222,6 +222,8 @@
                 }
             }
 
+            // Death event icons (handled separately in formatEventDescription for context)
+
             return '';
         }
 
@@ -241,10 +243,32 @@
 
             // Death events
             if (type === 'hist_figure_died') {
-                if (ev.slayer_name) {
+                var cause = ev.death_cause || extra.death_cause;
+                var victimId = ev.victim_hfid || extra.victim_hf;
+
+                // This figure is the slayer - show who they killed
+                if (ev.victim_name && ev.slayer_hfid == figId) {
+                    var victimSprite = '';
+                    if (ev.victim_race) {
+                        victimSprite = '<img src="/static/icons/races/' + ev.victim_race + '.png" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
+                    }
+                    var killedIcon = '<img src="/static/icons/events/killed.png" class="event-icon" alt="">';
+                    parts.unshift(killedIcon + ' killed ' + victimSprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + ev.victim_hfid + '">' + titleCase(ev.victim_name) + '</a>');
+                }
+                // This figure is the victim - show their death
+                else if (victimId == figId) {
+                    var diedIcon = '<img src="/static/icons/events/died.png" class="event-icon" alt="">';
+                    if (ev.slayer_name) {
+                        parts.unshift(diedIcon + ' died, killed by <a href="#" class="entity-link" data-type="figure" data-id="' + ev.slayer_hfid + '">' + titleCase(ev.slayer_name) + '</a>');
+                    } else {
+                        parts.unshift(diedIcon + ' died');
+                    }
+                }
+                // Fallback for other death events
+                else if (ev.slayer_name) {
                     parts.unshift('killed by <a href="#" class="entity-link" data-type="figure" data-id="' + ev.slayer_hfid + '">' + titleCase(ev.slayer_name) + '</a>');
                 }
-                var cause = ev.death_cause || extra.death_cause;
+
                 if (cause) {
                     parts.push('(' + cause.replace(/_/g, ' ') + ')');
                 }
@@ -380,10 +404,13 @@
                 var fig = data.figure;
                 var html = '<div class="entity-details">';
                 html += '<div class="entity-row"><span class="entity-label">Race:</span> ' + (fig.race_label || '-') + '</div>';
-                var casteVal = (fig.caste || '').toLowerCase();
-                // Only show caste if it's not male/female (show non-standard castes like creature-specific ones)
-                if (casteVal && casteVal !== 'male' && casteVal !== 'female' && casteVal !== 'default') {
-                    html += '<div class="entity-row"><span class="entity-label">Caste:</span> ' + titleCase(fig.caste) + '</div>';
+                if (fig.caste) {
+                    var casteVal = fig.caste.toLowerCase();
+                    if (casteVal === 'male' || casteVal === 'female') {
+                        html += '<div class="entity-row"><span class="entity-label">Sex:</span> ' + titleCase(fig.caste) + '</div>';
+                    } else {
+                        html += '<div class="entity-row"><span class="entity-label">Caste:</span> ' + titleCase(fig.caste) + '</div>';
+                    }
                 }
                 html += '<div class="entity-row"><span class="entity-label">Born:</span> ' + (fig.birth_year != null ? fig.birth_year : '-') + '</div>';
                 html += '<div class="entity-row"><span class="entity-label">Died:</span> ' + (fig.death_year == -1 ? '<span class="alive">Alive</span>' : (fig.death_year || '-')) + '</div>';
