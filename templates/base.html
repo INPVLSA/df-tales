@@ -238,7 +238,12 @@
 
             // Site reference
             if (ev.site_name) {
-                parts.push('at <a href="#" class="entity-link" data-type="site" data-id="' + ev.site_id + '">' + titleCase(ev.site_name) + '</a>');
+                var siteSprite = '';
+                if (ev.site_type) {
+                    var siteTypeKey = ev.site_type.replace(/ /g, '_');
+                    siteSprite = '<img src="/static/icons/sites/' + siteTypeKey + '.png" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
+                }
+                parts.push('at ' + siteSprite + '<a href="#" class="entity-link" data-type="site" data-id="' + ev.site_id + '">' + titleCase(ev.site_name) + '</a>');
             }
 
             // Death events
@@ -259,7 +264,11 @@
                 else if (victimId == figId) {
                     var diedIcon = '<img src="/static/icons/events/died.png" class="event-icon" alt="">';
                     if (ev.slayer_name) {
-                        parts.unshift(diedIcon + ' died, killed by <a href="#" class="entity-link" data-type="figure" data-id="' + ev.slayer_hfid + '">' + titleCase(ev.slayer_name) + '</a>');
+                        var slayerSprite = '';
+                        if (ev.slayer_race) {
+                            slayerSprite = '<img src="/static/icons/races/' + ev.slayer_race + '.png" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
+                        }
+                        parts.unshift(diedIcon + ' died, killed by ' + slayerSprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + ev.slayer_hfid + '">' + titleCase(ev.slayer_name) + '</a>');
                     } else {
                         parts.unshift(diedIcon + ' died');
                     }

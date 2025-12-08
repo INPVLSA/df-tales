@@ -1561,8 +1561,8 @@ def api_figure(figure_id):
     # hfid is direct column, other figure refs may be in extra_data JSON
     # victim_hf is used for hist_figure_died events (victim stored in extra_data)
     events = db.execute("""
-        SELECT e.*, s.name as site_name,
-               slayer.name as slayer_name
+        SELECT e.*, s.name as site_name, s.type as site_type,
+               slayer.name as slayer_name, slayer.race as slayer_race
         FROM historical_events e
         LEFT JOIN sites s ON e.site_id = s.id
         LEFT JOIN historical_figures slayer ON e.slayer_hfid = slayer.id
