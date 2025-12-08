@@ -1346,6 +1346,31 @@ def world_map():
         GROUP BY type ORDER BY count DESC
     """).fetchall()
 
+    # Get mountain peaks with coordinates
+    peaks_data = db.execute("""
+        SELECT id, name, coords, height, is_volcano
+        FROM mountain_peaks
+        WHERE coords IS NOT NULL AND coords != ''
+    """).fetchall()
+
+    peaks_list = []
+    for row in peaks_data:
+        peak = dict(row)
+        try:
+            x, y = map(int, peak['coords'].split(','))
+            peak['x'] = x
+            peak['y'] = y
+            # Update bounds to include peaks
+            min_x, max_x = min(min_x, x), max(max_x, x)
+            min_y, max_y = min(min_y, y), max(max_y, y)
+            peaks_list.append(peak)
+        except (ValueError, AttributeError):
+            continue
+
+    # Recalculate map dimensions after including peaks
+    map_width = max_x - min_x + 1 if max_x >= min_x else 1
+    map_height = max_y - min_y + 1 if max_y >= min_y else 1
+
     # Check if map image exists (terrain or uploaded)
     world_id = current_world['id'] if current_world else None
     has_map = False
@@ -1356,14 +1381,47 @@ def world_map():
 
     return render_template('map.html',
                          sites=sites_list,
+                         peaks=peaks_list,
                          min_x=min_x if min_x != float('inf') else 0,
                          min_y=min_y if min_y != float('inf') else 0,
                          map_width=map_width,
                          map_height=map_height,
                          type_counts=type_counts,
                          total_sites=len(sites_list),
+                         total_peaks=len(peaks_list),
                          has_map=has_map,
                          world_id=world_id)
+
+
+@app.route('/peak/<int:peak_id>')
+def peak_detail(peak_id):
+    """Display mountain peak details."""
+    db = get_db()
+    if not db:
+        flash('Database not found. Run import first.', 'error')
+        return redirect(url_for('index'))
+
+    peak = db.execute(
+        "SELECT * FROM mountain_peaks WHERE id = ?",
+        [peak_id]
+    ).fetchone()
+
+    if not peak:
+        flash('Peak not found.', 'error')
+        return redirect(url_for('world_map'))
+
+    peak = dict(peak)
+
+    # Parse coordinates
+    if peak.get('coords'):
+        try:
+            x, y = map(int, peak['coords'].split(','))
+            peak['x'] = x
+            peak['y'] = y
+        except (ValueError, AttributeError):
+            pass
+
+    return render_template('peak.html', peak=peak)
 
 
 @app.route('/events')

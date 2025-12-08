@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ peak.name }} - DF-World{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <h1>
+        <span class="peak-type-icon{% if peak.is_volcano %} volcano{% endif %}">&#9650;</span>
+        {{ peak.name }}
+    </h1>
+    <div class="detail-subtitle">
+        {% if peak.is_volcano %}
+        <span class="volcano-label">Volcano</span>
+        {% else %}
+        Mountain Peak
+        {% endif %}
+    </div>
+</div>
+
+<div class="detail-content">
+    <div class="detail-section">
+        <h2>Details</h2>
+        <table class="detail-table">
+            <tr>
+                <th>Height</th>
+                <td>{{ peak.height }}m</td>
+            </tr>
+            <tr>
+                <th>Location</th>
+                <td>
+                    {% if peak.x is defined %}
+                    ({{ peak.x }}, {{ peak.y }})
+                    <a href="{{ url_for('world_map') }}" class="map-link" title="View on map">&#x1F5FA;</a>
+                    {% else %}
+                    Unknown
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Type</th>
+                <td>{% if peak.is_volcano %}<span class="volcano-label">Volcano</span>{% else %}Mountain{% endif %}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="detail-nav">
+    <a href="{{ url_for('world_map') }}" class="btn">&larr; Back to Map</a>
+</div>
+{% endblock %}

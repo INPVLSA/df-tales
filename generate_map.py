@@ -5,8 +5,136 @@ Generates a terrain map image from region coordinate data.
 """
 
 import sqlite3
+import math
+import hashlib
 from pathlib import Path
 from PIL import Image
+
+
+# Simple Perlin noise implementation
+def perlin_noise_2d(x, y, seed=0):
+    """Generate Perlin-like noise value for coordinates."""
+    # Use hash for pseudo-random gradients based on seed
+    def grad(ix, iy):
+        h = int(hashlib.md5(f"{ix},{iy},{seed}".encode()).hexdigest()[:8], 16)
+        angle = (h / 0xFFFFFFFF) * 2 * math.pi
+        return math.cos(angle), math.sin(angle)
+
+    def dot_grid_gradient(ix, iy, x, y):
+        gx, gy = grad(ix, iy)
+        dx, dy = x - ix, y - iy
+        return dx * gx + dy * gy
+
+    def fade(t):
+        return t * t * t * (t * (t * 6 - 15) + 10)
+
+    def lerp(a, b, t):
+        return a + t * (b - a)
+
+    x0, y0 = int(math.floor(x)), int(math.floor(y))
+    x1, y1 = x0 + 1, y0 + 1
+
+    sx, sy = fade(x - x0), fade(y - y0)
+
+    n00 = dot_grid_gradient(x0, y0, x, y)
+    n10 = dot_grid_gradient(x1, y0, x, y)
+    n01 = dot_grid_gradient(x0, y1, x, y)
+    n11 = dot_grid_gradient(x1, y1, x, y)
+
+    ix0 = lerp(n00, n10, sx)
+    ix1 = lerp(n01, n11, sx)
+
+    return lerp(ix0, ix1, sy)
+
+
+def get_mountain_height_noise(x, y, seed=42, scale=0.15):
+    """Get mountain height (low/mid/high) for a coordinate using Perlin noise only."""
+    # Multi-octave noise for more natural variation
+    noise = 0
+    noise += perlin_noise_2d(x * scale, y * scale, seed) * 1.0
+    noise += perlin_noise_2d(x * scale * 2, y * scale * 2, seed + 1) * 0.5
+    noise += perlin_noise_2d(x * scale * 4, y * scale * 4, seed + 2) * 0.25
+
+    # Normalize to 0-1 range and stretch to use full range
+    noise = (noise + 0.8) / 1.6
+    noise = max(0, min(1, noise))  # Clamp to 0-1
+
+    # Map to height categories
+    if noise < 0.33:
+        return 'low'
+    elif noise < 0.66:
+        return 'mid'
+    else:
+        return 'high'
+
+
+def build_peak_height_map(cursor, peak_influence_radius=8):
+    """Build a height influence map from mountain peaks.
+
+    Returns dict of (x, y) -> height_value (0-1) based on distance to peaks.
+    """
+    cursor.execute("SELECT coords, height FROM mountain_peaks WHERE coords IS NOT NULL")
+    peaks = []
+    max_height = 1
+    for coords_str, height in cursor.fetchall():
+        if ',' in coords_str:
+            try:
+                x, y = coords_str.split(',')
+                peaks.append((int(x), int(y), height or 200))
+                max_height = max(max_height, height or 200)
+            except ValueError:
+                continue
+
+    if not peaks:
+        return {}
+
+    height_map = {}
+    for px, py, peak_height in peaks:
+        # Normalized peak height (0-1)
+        norm_height = peak_height / max_height
+
+        # Mark the peak tile itself as high
+        height_map[(px, py)] = 1.0
+
+        # Influence surrounding tiles based on distance
+        for dx in range(-peak_influence_radius, peak_influence_radius + 1):
+            for dy in range(-peak_influence_radius, peak_influence_radius + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                x, y = px + dx, py + dy
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist <= peak_influence_radius:
+                    # Linear falloff from peak
+                    influence = (1 - dist / peak_influence_radius) * norm_height
+                    # Keep highest influence if multiple peaks affect same tile
+                    if (x, y) not in height_map or height_map[(x, y)] < influence:
+                        height_map[(x, y)] = influence
+
+    return height_map
+
+
+def get_mountain_height(x, y, peak_height_map, seed=42, scale=0.15):
+    """Get mountain height using peak data + Perlin noise for variation."""
+    # Check if we have peak influence data for this tile
+    peak_influence = peak_height_map.get((x, y), 0)
+
+    # Add some noise for natural variation
+    noise = perlin_noise_2d(x * scale, y * scale, seed) * 0.15
+
+    # Combine peak influence with noise
+    height_value = peak_influence + noise
+
+    # If no peak influence, fall back to pure noise-based height
+    if peak_influence == 0:
+        return get_mountain_height_noise(x, y, seed, scale)
+
+    # Map to height categories based on peak influence
+    if height_value < 0.3:
+        return 'low'
+    elif height_value < 0.7:
+        return 'mid'
+    else:
+        return 'high'
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -15,7 +143,7 @@ DATA_DIR = BASE_DIR / "data"
 WORLDS_DIR = DATA_DIR / "worlds"
 
 # Default tile size (pixels per world tile)
-DEFAULT_TILE_SIZE = 16
+DEFAULT_TILE_SIZE = 32
 
 # Terrain types
 TERRAIN_TYPES = [
@@ -23,11 +151,14 @@ TERRAIN_TYPES = [
     'grassland', 'desert', 'wetland', 'glacier', 'tundra'
 ]
 
+# Mountain height variants
+MOUNTAIN_HEIGHTS = ['low', 'mid', 'high']
+
 # Evilness variants
 EVILNESS_VARIANTS = ['neutral', 'good', 'evil']
 
 # Overlay terrains - these need a base terrain underneath
-OVERLAY_TERRAINS = {'forest'}
+OVERLAY_TERRAINS = {'forest', 'mountains', 'mountains_low', 'mountains_mid', 'mountains_high'}
 OVERLAY_BASE_TERRAIN = 'grassland'
 
 # Fallback colors if sprite not found (RGB)
@@ -116,6 +247,21 @@ def load_terrain_sprites(tile_size):
 
             if img:
                 sprites[(terrain, evilness)] = img
+
+    # Load mountain height variants
+    for height in MOUNTAIN_HEIGHTS:
+        terrain_key = f"mountains_{height}"
+        for evilness in EVILNESS_VARIANTS:
+            if evilness == 'neutral':
+                filename = f"mountains_{height}.png"
+            else:
+                filename = f"mountains_{height}_{evilness}.png"
+
+            sprite_path = TERRAIN_ICONS_DIR / filename
+            img = load_sprite(sprite_path, tile_size, fit_full=True)
+
+            if img:
+                sprites[(terrain_key, evilness)] = img
 
     return sprites
 
@@ -225,6 +371,11 @@ def generate_terrain_map(db_path, output_path=None, tile_size=DEFAULT_TILE_SIZE)
     height = max_y - min_y + 1
     print(f"  World size: {width}x{height} tiles ({min_x},{min_y} to {max_x},{max_y})")
 
+    # Build peak height map for mountain rendering
+    print("  Building peak height map...")
+    peak_height_map = build_peak_height_map(cursor)
+    print(f"  Peak influence covers {len(peak_height_map)} tiles")
+
     # Create output image
     img_width = width * tile_size
     img_height = height * tile_size
@@ -256,30 +407,41 @@ def generate_terrain_map(db_path, output_path=None, tile_size=DEFAULT_TILE_SIZE)
         else:
             evilness_stats['unknown'] += 1
 
-        # Get sprite for this terrain/evilness combo
-        sprite_key = (terrain_key, evilness_key)
-        tile_img = sprites.get(sprite_key)
-
-        # Try neutral variant as fallback
-        if not tile_img:
-            tile_img = sprites.get((terrain_key, 'neutral'))
-
-        # Use color fallback if no sprite
-        if not tile_img:
-            tile_img = get_fallback_tile(terrain_key, evilness_key, tile_size, fallback_cache)
-
-        # For overlay terrains (like forest), get base terrain tile
-        base_tile = None
-        if terrain_key in OVERLAY_TERRAINS:
-            base_key = (OVERLAY_BASE_TERRAIN, evilness_key)
-            base_tile = sprites.get(base_key)
-            if not base_tile:
-                base_tile = sprites.get((OVERLAY_BASE_TERRAIN, 'neutral'))
-            if not base_tile:
-                base_tile = get_fallback_tile(OVERLAY_BASE_TERRAIN, evilness_key, tile_size, fallback_cache)
-
-        # Parse and place tiles
+        # Parse and place tiles - for mountains, use per-tile height variation
         for x, y in parse_coords(coords_str):
+            # Determine actual terrain key (with mountain height if applicable)
+            actual_terrain_key = terrain_key
+            if terrain_key == 'mountains':
+                height = get_mountain_height(x, y, peak_height_map)
+                actual_terrain_key = f"mountains_{height}"
+
+            # Get sprite for this terrain/evilness combo
+            sprite_key = (actual_terrain_key, evilness_key)
+            tile_img = sprites.get(sprite_key)
+
+            # Try neutral variant as fallback
+            if not tile_img:
+                tile_img = sprites.get((actual_terrain_key, 'neutral'))
+
+            # Fall back to base mountains sprite if height variant not found
+            if not tile_img and terrain_key == 'mountains':
+                tile_img = sprites.get(('mountains', evilness_key))
+                if not tile_img:
+                    tile_img = sprites.get(('mountains', 'neutral'))
+
+            # Use color fallback if no sprite
+            if not tile_img:
+                tile_img = get_fallback_tile(terrain_key, evilness_key, tile_size, fallback_cache)
+
+            # For overlay terrains (like forest, mountains), get base terrain tile
+            base_tile = None
+            if actual_terrain_key in OVERLAY_TERRAINS or terrain_key in OVERLAY_TERRAINS:
+                base_key = (OVERLAY_BASE_TERRAIN, evilness_key)
+                base_tile = sprites.get(base_key)
+                if not base_tile:
+                    base_tile = sprites.get((OVERLAY_BASE_TERRAIN, 'neutral'))
+                if not base_tile:
+                    base_tile = get_fallback_tile(OVERLAY_BASE_TERRAIN, evilness_key, tile_size, fallback_cache)
             px = (x - min_x) * tile_size
             py = (y - min_y) * tile_size
 

@@ -11,36 +11,69 @@
         <button id="zoom-out" class="map-btn" title="Zoom Out">-</button>
         <button id="zoom-reset" class="map-btn" title="Reset">R</button>
         <button id="legend-toggle" class="map-btn" title="Toggle Legend">&#9776;</button>
-        <span class="map-info">{{ total_sites }} sites</span>
+        <span class="map-info">{{ total_sites }} sites, {{ total_peaks }} peaks</span>
     </div>
 
     <div class="map-legend-dropdown" id="map-legend">
-        <div class="legend-items">
-            {% for tc in type_counts %}
-            {% set ti = get_site_type_info(tc.type) %}
-            <label class="legend-item">
-                <input type="checkbox" checked data-type="{{ tc.type|replace(' ', '-') }}" class="legend-toggle">
-                {% if ti.img %}
-                <img src="{{ ti.img }}" alt="{{ ti.icon }}" class="legend-icon">
-                {% else %}
-                <span class="legend-icon-text">{{ ti.icon }}</span>
-                {% endif %}
-                <span class="legend-label">{{ ti.label }}</span>
-                <span class="legend-count">({{ tc.count }})</span>
-            </label>
-            {% endfor %}
+        <div class="legend-tabs">
+            <button class="legend-tab active" data-tab="sites">Sites</button>
+            <button class="legend-tab" data-tab="peaks">Peaks</button>
         </div>
-        <div class="legend-actions">
-            <button id="legend-all" class="legend-btn">All</button>
-            <button id="legend-none" class="legend-btn">None</button>
+
+        <div class="legend-tab-content" id="tab-sites">
+            <div class="legend-items">
+                {% for tc in type_counts %}
+                {% set ti = get_site_type_info(tc.type) %}
+                <label class="legend-item">
+                    <input type="checkbox" checked data-type="{{ tc.type|replace(' ', '-') }}" class="legend-toggle site-toggle">
+                    {% if ti.img %}
+                    <img src="{{ ti.img }}" alt="{{ ti.icon }}" class="legend-icon">
+                    {% else %}
+                    <span class="legend-icon-text">{{ ti.icon }}</span>
+                    {% endif %}
+                    <span class="legend-label">{{ ti.label }}</span>
+                    <span class="legend-count">({{ tc.count }})</span>
+                </label>
+                {% endfor %}
+            </div>
+            <div class="legend-actions">
+                <button id="legend-all-sites" class="legend-btn">All</button>
+                <button id="legend-none-sites" class="legend-btn">None</button>
+            </div>
+        </div>
+
+        <div class="legend-tab-content" id="tab-peaks" style="display: none;">
+            <div class="legend-items">
+                <label class="legend-item">
+                    <input type="checkbox" checked data-type="peak" class="legend-toggle peak-toggle">
+                    <span class="legend-icon-text">&#9650;</span>
+                    <span class="legend-label">Mountain Peaks</span>
+                    <span class="legend-count">({{ total_peaks }})</span>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" checked data-type="volcano" class="legend-toggle peak-toggle">
+                    <span class="legend-icon-text" style="color: #ff4500;">&#9650;</span>
+                    <span class="legend-label">Volcanoes</span>
+                    <span class="legend-count">({{ peaks|selectattr('is_volcano')|list|length }})</span>
+                </label>
+            </div>
+            <div class="legend-peaks-list">
+                {% for peak in peaks %}
+                <div class="legend-peak-item" data-peak-id="{{ peak.id }}" data-x="{{ peak.x }}" data-y="{{ peak.y }}">
+                    <span class="peak-icon{% if peak.is_volcano %} volcano{% endif %}">&#9650;</span>
+                    <span class="peak-name">{{ peak.name }}</span>
+                    <span class="peak-height">{{ peak.height }}m</span>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
-    <div class="map-viewport" id="map-viewport">
+    <div class="map-viewport" id="map-viewport" style="aspect-ratio: {{ map_width }} / {{ map_height }};">
         <div class="map-canvas{% if has_map %} has-bg{% endif %}" id="map-canvas"
              {% if has_map %}style="background-image: url('{{ url_for('world_map_image', world_id=world_id) }}');"{% endif %}>
             {% for site in sites %}
-            <div class="map-marker type-{{ site.type|replace(' ', '-') }}"
+            <div class="map-marker site-marker type-{{ site.type|replace(' ', '-') }}"
                  data-id="{{ site.id }}"
                  data-name="{{ site.name }}"
                  data-type="{{ site.type_label }}"
@@ -54,6 +87,18 @@
                 {% endif %}
             </div>
             {% endfor %}
+
+            {% for peak in peaks %}
+            <div class="map-marker peak-marker{% if peak.is_volcano %} volcano{% endif %}"
+                 data-id="{{ peak.id }}"
+                 data-name="{{ peak.name }}"
+                 data-height="{{ peak.height }}"
+                 data-volcano="{{ peak.is_volcano }}"
+                 style="left: {{ ((peak.x - min_x) / map_width * 100) }}%; top: {{ ((peak.y - min_y) / map_height * 100) }}%;"
+                 title="{{ peak.name }}">
+                <span class="marker-text peak-icon">&#9650;</span>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -65,7 +110,8 @@
     var viewport = document.getElementById('map-viewport');
     var canvas = document.getElementById('map-canvas');
     var tooltip = document.getElementById('map-tooltip');
-    var markers = document.querySelectorAll('.map-marker');
+    var siteMarkers = document.querySelectorAll('.site-marker');
+    var peakMarkers = document.querySelectorAll('.peak-marker');
     var legend = document.getElementById('map-legend');
     var legendToggle = document.getElementById('legend-toggle');
 
@@ -80,8 +126,27 @@
         canvas.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
     }
 
+    // Navigate to coordinates
+    function navigateTo(xPercent, yPercent) {
+        var viewportRect = viewport.getBoundingClientRect();
+
+        // Set zoom level first
+        scale = Math.min(maxScale, 3);
+
+        // Point position relative to canvas center (since transform-origin is center)
+        var pointX = (xPercent / 100 - 0.5) * canvas.offsetWidth;
+        var pointY = (yPercent / 100 - 0.5) * canvas.offsetHeight;
+
+        // Pan so that point is at viewport center
+        panX = -pointX * scale;
+        panY = -pointY * scale;
+
+        updateTransform();
+    }
+
     // Legend dropdown toggle
-    legendToggle.addEventListener('click', function() {
+    legendToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
         legend.classList.toggle('open');
         legendToggle.classList.toggle('active');
     });
@@ -92,6 +157,17 @@
             legend.classList.remove('open');
             legendToggle.classList.remove('active');
         }
+    });
+
+    // Tab switching
+    document.querySelectorAll('.legend-tab').forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.legend-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.legend-tab-content').forEach(function(c) { c.style.display = 'none'; });
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
+        });
     });
 
     // Zoom controls
@@ -112,11 +188,27 @@
         updateTransform();
     });
 
-    // Mouse wheel zoom
+    // Mouse wheel zoom - zoom toward cursor position
     viewport.addEventListener('wheel', function(e) {
         e.preventDefault();
+        var rect = viewport.getBoundingClientRect();
+        var mouseX = e.clientX - rect.left;
+        var mouseY = e.clientY - rect.top;
+
+        // Point on canvas under cursor (before zoom)
+        var canvasCenterX = rect.width / 2;
+        var canvasCenterY = rect.height / 2;
+        var pointX = (mouseX - canvasCenterX - panX) / scale;
+        var pointY = (mouseY - canvasCenterY - panY) / scale;
+
         var delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale = Math.max(minScale, Math.min(maxScale, scale * delta));
+        var newScale = Math.max(minScale, Math.min(maxScale, scale * delta));
+
+        // Adjust pan so the same point stays under cursor
+        panX = mouseX - canvasCenterX - pointX * newScale;
+        panY = mouseY - canvasCenterY - pointY * newScale;
+
+        scale = newScale;
         updateTransform();
     });
 
@@ -143,8 +235,8 @@
         viewport.style.cursor = 'grab';
     });
 
-    // Marker tooltips
-    markers.forEach(function(marker) {
+    // Site marker tooltips
+    siteMarkers.forEach(function(marker) {
         marker.addEventListener('mouseenter', function(e) {
             var name = marker.dataset.name || 'Unknown';
             var type = marker.dataset.type || '';
@@ -168,39 +260,109 @@
 
         marker.addEventListener('click', function() {
             var id = marker.dataset.id;
-            // Could link to site detail page when implemented
-            console.log('Site clicked:', id, marker.dataset.name);
+            window.location.href = '/site/' + id;
         });
     });
 
-    // Legend toggle
-    function updateMarkerVisibility() {
-        document.querySelectorAll('.legend-toggle').forEach(function(checkbox) {
+    // Peak marker tooltips
+    peakMarkers.forEach(function(marker) {
+        marker.addEventListener('mouseenter', function(e) {
+            var name = marker.dataset.name || 'Unknown';
+            var height = marker.dataset.height || '';
+            var isVolcano = marker.dataset.volcano === '1';
+
+            var html = '<strong>' + name + '</strong><br>';
+            html += isVolcano ? '<span style="color:#ff4500;">Volcano</span>' : 'Mountain Peak';
+            html += '<br>Height: ' + height + 'm';
+
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+        });
+
+        marker.addEventListener('mousemove', function(e) {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
+
+        marker.addEventListener('mouseleave', function() {
+            tooltip.style.display = 'none';
+        });
+
+        marker.addEventListener('click', function() {
+            var id = marker.dataset.id;
+            window.location.href = '/peak/' + id;
+        });
+    });
+
+    // Site visibility toggle
+    function updateSiteVisibility() {
+        document.querySelectorAll('.site-toggle').forEach(function(checkbox) {
             var type = checkbox.dataset.type;
             var visible = checkbox.checked;
-            document.querySelectorAll('.map-marker.type-' + type).forEach(function(m) {
+            document.querySelectorAll('.site-marker.type-' + type).forEach(function(m) {
                 m.style.display = visible ? '' : 'none';
             });
         });
     }
 
-    document.querySelectorAll('.legend-toggle').forEach(function(checkbox) {
-        checkbox.addEventListener('change', updateMarkerVisibility);
+    // Peak visibility toggle
+    function updatePeakVisibility() {
+        var showPeaks = document.querySelector('.peak-toggle[data-type="peak"]').checked;
+        var showVolcanoes = document.querySelector('.peak-toggle[data-type="volcano"]').checked;
+
+        peakMarkers.forEach(function(m) {
+            var isVolcano = m.dataset.volcano === '1';
+            if (isVolcano) {
+                m.style.display = showVolcanoes ? '' : 'none';
+            } else {
+                m.style.display = showPeaks ? '' : 'none';
+            }
+        });
+    }
+
+    document.querySelectorAll('.site-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateSiteVisibility);
     });
 
-    // All/None buttons
-    document.getElementById('legend-all').addEventListener('click', function() {
-        document.querySelectorAll('.legend-toggle').forEach(function(cb) {
-            cb.checked = true;
-        });
-        updateMarkerVisibility();
+    document.querySelectorAll('.peak-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', updatePeakVisibility);
     });
 
-    document.getElementById('legend-none').addEventListener('click', function() {
-        document.querySelectorAll('.legend-toggle').forEach(function(cb) {
-            cb.checked = false;
+    // All/None buttons for sites
+    document.getElementById('legend-all-sites').addEventListener('click', function() {
+        document.querySelectorAll('.site-toggle').forEach(function(cb) { cb.checked = true; });
+        updateSiteVisibility();
+    });
+
+    document.getElementById('legend-none-sites').addEventListener('click', function() {
+        document.querySelectorAll('.site-toggle').forEach(function(cb) { cb.checked = false; });
+        updateSiteVisibility();
+    });
+
+    // Peak list navigation
+    document.querySelectorAll('.legend-peak-item').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var x = parseFloat(item.dataset.x);
+            var y = parseFloat(item.dataset.y);
+            var minX = {{ min_x }};
+            var minY = {{ min_y }};
+            var mapWidth = {{ map_width }};
+            var mapHeight = {{ map_height }};
+
+            var xPercent = ((x - minX) / mapWidth) * 100;
+            var yPercent = ((y - minY) / mapHeight) * 100;
+
+            navigateTo(xPercent, yPercent);
+
+            // Highlight the peak marker briefly
+            var peakId = item.dataset.peakId;
+            var marker = document.querySelector('.peak-marker[data-id="' + peakId + '"]');
+            if (marker) {
+                marker.classList.add('highlight');
+                setTimeout(function() { marker.classList.remove('highlight'); }, 2000);
+            }
         });
-        updateMarkerVisibility();
     });
 })();
 </script>

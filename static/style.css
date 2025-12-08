@@ -1352,13 +1352,15 @@ a:hover {
 }
 
 .map-viewport {
-    width: 100%;
-    height: 600px;
+    width: min(100%, 80vh);
+    height: auto;
+    aspect-ratio: 1 / 1;
     background: #0a0a0a;
     border: 2px solid #333;
     overflow: hidden;
     cursor: grab;
     position: relative;
+    margin: 0 auto;
 }
 
 .map-canvas {
@@ -1371,7 +1373,7 @@ a:hover {
 
 .map-canvas.has-bg {
     background-size: 100% 100%;
-    background-position: center;
+    background-position: top left;
     background-repeat: no-repeat;
     image-rendering: pixelated;
 }
@@ -1534,6 +1536,142 @@ a:hover {
     font-size: 10px;
     margin-left: auto;
     flex-shrink: 0;
+}
+
+/* Legend tabs */
+.legend-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.5rem;
+}
+
+.legend-tab {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    padding: 0.4rem 0.6rem;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.legend-tab:hover {
+    color: #aaa;
+    border-color: #444;
+}
+
+.legend-tab.active {
+    background: #222;
+    color: #0f0;
+    border-color: #0f0;
+}
+
+.legend-tab-content {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Peak markers */
+.peak-marker {
+    z-index: 15;
+}
+
+.peak-marker .peak-icon {
+    color: #888;
+    font-size: 14px;
+    text-shadow: 0 1px 2px #000;
+}
+
+.peak-marker.volcano .peak-icon {
+    color: #ff4500;
+}
+
+.peak-marker:hover .peak-icon {
+    color: #fff;
+    text-shadow: 0 0 8px #fff;
+}
+
+.peak-marker.volcano:hover .peak-icon {
+    color: #ff6347;
+    text-shadow: 0 0 8px #ff4500;
+}
+
+.peak-marker.highlight .peak-icon {
+    animation: peak-pulse 0.5s ease-in-out 4;
+}
+
+@keyframes peak-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.5); }
+}
+
+/* Peak list in legend */
+.legend-peaks-list {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #333;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.legend-peak-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 2px;
+}
+
+.legend-peak-item:hover {
+    background: #1a1a1a;
+}
+
+.legend-peak-item .peak-icon {
+    color: #888;
+    font-size: 12px;
+}
+
+.legend-peak-item .peak-icon.volcano {
+    color: #ff4500;
+}
+
+.legend-peak-item .peak-name {
+    flex: 1;
+    color: #aaa;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.legend-peak-item .peak-height {
+    color: #666;
+    font-size: 10px;
+}
+
+.legend-peak-item:hover .peak-name {
+    color: #fff;
+}
+
+/* Peak detail page */
+.peak-type-icon {
+    color: #888;
+    font-size: 1.2em;
+    margin-right: 0.5rem;
+}
+
+.peak-type-icon.volcano {
+    color: #ff4500;
+}
+
+.volcano-label {
+    color: #ff4500;
+    font-weight: bold;
 }
 
 .legend-actions {
