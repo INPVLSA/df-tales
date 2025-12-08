@@ -1683,6 +1683,8 @@ a:hover {
     padding-left: 1rem;
     border-left: 2px solid #333;
     margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
 }
 
 .timeline-event:hover {
@@ -1698,8 +1700,6 @@ a:hover {
 
 .timeline-desc {
     color: #aaa;
-    display: block;
-    margin-top: 2px;
 }
 
 .timeline-desc .entity-link {
@@ -1721,4 +1721,66 @@ a:hover {
 .expand-more-btn:hover {
     color: #0f0;
     text-decoration: underline;
+}
+
+/* Inline icons in modal lists */
+.inline-icon {
+    height: 14px;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 3px;
+    image-rendering: pixelated;
+}
+
+/* Event icons in timeline */
+.event-icon {
+    height: 24px;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 8px;
+    image-rendering: pixelated;
+}
+
+/* Position hierarchy in entity modal */
+.positions-hierarchy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.position-category {
+    background: #0a0a0a;
+    border: 1px solid #222;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.position-category-header {
+    background: #111;
+    padding: 0.4rem 0.6rem;
+    font-size: 11px;
+    color: #888;
+    border-bottom: 1px solid #222;
+}
+
+.category-icon {
+    margin-right: 0.25rem;
+}
+
+.position-category-list {
+    padding: 0.5rem;
+}
+
+.position-item {
+    padding: 0.2rem 0.4rem;
+    font-size: 12px;
+}
+
+.position-item:hover {
+    background: #151515;
+}
+
+.vacant {
+    color: #555;
+    font-style: italic;
 }

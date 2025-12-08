@@ -130,6 +130,101 @@
             return 'Entity #' + entity.entity_id;
         }
 
+        // Event state icons mapping
+        var EVENT_STATE_ICONS = {
+            'refugee': '/static/icons/events/refugee.png',
+            'settler': '/static/icons/events/settler.png',
+            'visitor': '/static/icons/events/visitor.png',
+            'wanderer': '/static/icons/events/wanderer.png'
+        };
+
+        // Job category icons mapping
+        var JOB_CATEGORY_ICONS = {
+            food: '/static/icons/events/job_food.png',
+            farming: '/static/icons/events/job_farming.png',
+            mining: '/static/icons/events/job_mining.png',
+            woodwork: '/static/icons/events/job_woodwork.png',
+            metalwork: '/static/icons/events/job_metalwork.png',
+            cloth: '/static/icons/events/job_cloth.png',
+            military: '/static/icons/events/job_military.png',
+            scholar: '/static/icons/events/job_scholar.png',
+            arts: '/static/icons/events/job_arts.png',
+            religious: '/static/icons/events/job_religious.png',
+            trade: '/static/icons/events/job_trade.png',
+            criminal: '/static/icons/events/job_criminal.png',
+            other: '/static/icons/events/job_other.png'
+        };
+
+        // Map jobs to categories
+        var JOB_CATEGORIES = {
+            // Food
+            cook: 'food', brewer: 'food', butcher: 'food', cheese_maker: 'food',
+            fish_cleaner: 'food', fish_dissector: 'food', miller: 'food',
+            // Farming/Animals
+            farmer: 'farming', planter: 'farming', animal_caretaker: 'farming',
+            animal_trainer: 'farming', animal_dissector: 'farming', beekeeper: 'farming',
+            milker: 'farming', shearer: 'farming', gelder: 'farming', thresher: 'farming',
+            herbalist: 'farming', presser: 'farming',
+            // Mining/Stonework
+            miner: 'mining', mason: 'mining', gem_cutter: 'mining',
+            // Woodwork
+            carpenter: 'woodwork', woodcutter: 'woodwork', wood_burner: 'woodwork', bowyer: 'woodwork',
+            // Metalwork
+            blacksmith: 'metalwork', armorer: 'metalwork', weaponsmith: 'metalwork',
+            metalcrafter: 'metalwork', bone_carver: 'metalwork',
+            // Cloth/Leather
+            clothier: 'cloth', weaver: 'cloth', spinner: 'cloth', tanner: 'cloth',
+            leatherworker: 'cloth', lye_maker: 'cloth', soap_maker: 'cloth',
+            // Military/Combat
+            mercenary: 'military', beast_hunter: 'military', monster_slayer: 'military',
+            ranger: 'military', scout: 'military', hunter: 'military', trapper: 'military',
+            // Scholars
+            astronomer: 'scholar', mathematician: 'scholar', geographer: 'scholar',
+            naturalist: 'scholar', historian: 'scholar', philosopher: 'scholar',
+            engineer: 'scholar', doctor: 'scholar', chemist: 'scholar',
+            // Arts/Entertainment
+            bard: 'arts', dancer: 'arts', poet: 'arts',
+            // Religious
+            monk: 'religious', pilgrim: 'religious', prophet: 'religious',
+            // Trade
+            merchant: 'trade', peddler: 'trade', tavern_keeper: 'trade',
+            // Criminal
+            criminal: 'criminal', thief: 'criminal', snatcher: 'criminal'
+        };
+
+        function getJobIcon(job) {
+            if (!job) return null;
+            var category = JOB_CATEGORIES[job] || 'other';
+            return JOB_CATEGORY_ICONS[category];
+        }
+
+        function getEventIcon(ev) {
+            var extra = {};
+            if (ev.extra_data) {
+                try { extra = JSON.parse(ev.extra_data); } catch(e) {}
+            }
+            var type = (ev.type || '').replace(/ /g, '_');
+
+            // State change icons
+            if (type === 'change_hf_state') {
+                var state = ev.state || extra.state;
+                if (state && EVENT_STATE_ICONS[state]) {
+                    return '<img src="' + EVENT_STATE_ICONS[state] + '" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
+                }
+            }
+
+            // Job change icons
+            if (type === 'change_hf_job') {
+                var job = extra.new_job;
+                var iconPath = getJobIcon(job);
+                if (iconPath) {
+                    return '<img src="' + iconPath + '" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
+                }
+            }
+
+            return '';
+        }
+
         function formatEventDescription(ev, figId) {
             var parts = [];
             var extra = {};
@@ -224,10 +319,30 @@
                 sprite = '<img src="/static/icons/artifact.png" class="modal-title-icon" alt="" onerror="this.style.display=\'none\'">';
             } else if (type === 'entity' && data.entity) {
                 name = data.entity.name;
-                var race = data.entity.race;
-                if (race) {
-                    var imgPath = '/static/icons/races/' + race.toUpperCase() + '.png';
-                    sprite = '<img src="' + imgPath + '" class="modal-title-icon" alt="" onerror="this.style.display=\'none\'">';
+                // If no name, build a fallback from race + type
+                if (!name) {
+                    var parts = [];
+                    if (data.entity.race) {
+                        parts.push(titleCase(data.entity.race.replace(/_/g, ' ')));
+                    }
+                    if (data.entity.type) {
+                        parts.push(titleCase(data.entity.type.replace(/_/g, ' ')));
+                    }
+                    if (parts.length > 0) {
+                        name = parts.join(' ');
+                    }
+                }
+                // Use entity type icon if available, fallback to race icon
+                var entType = data.entity.type;
+                if (entType) {
+                    var imgPath = '/static/icons/entities/' + entType + '.png';
+                    sprite = '<img src="' + imgPath + '" class="modal-title-icon" alt="" onerror="this.onerror=null; var race=\'' + (data.entity.race || '') + '\'; if(race) { this.src=\'/static/icons/races/\'+race.toUpperCase()+\'.png\'; } else { this.style.display=\'none\'; }">';
+                } else {
+                    var race = data.entity.race;
+                    if (race) {
+                        var imgPath = '/static/icons/races/' + race.toUpperCase() + '.png';
+                        sprite = '<img src="' + imgPath + '" class="modal-title-icon" alt="" onerror="this.style.display=\'none\'">';
+                    }
                 }
             }
             if (name) {
@@ -265,7 +380,11 @@
                 var fig = data.figure;
                 var html = '<div class="entity-details">';
                 html += '<div class="entity-row"><span class="entity-label">Race:</span> ' + (fig.race_label || '-') + '</div>';
-                html += '<div class="entity-row"><span class="entity-label">Caste:</span> ' + (fig.caste || '-') + '</div>';
+                var casteVal = (fig.caste || '').toLowerCase();
+                // Only show caste if it's not male/female (show non-standard castes like creature-specific ones)
+                if (casteVal && casteVal !== 'male' && casteVal !== 'female' && casteVal !== 'default') {
+                    html += '<div class="entity-row"><span class="entity-label">Caste:</span> ' + titleCase(fig.caste) + '</div>';
+                }
                 html += '<div class="entity-row"><span class="entity-label">Born:</span> ' + (fig.birth_year != null ? fig.birth_year : '-') + '</div>';
                 html += '<div class="entity-row"><span class="entity-label">Died:</span> ' + (fig.death_year == -1 ? '<span class="alive">Alive</span>' : (fig.death_year || '-')) + '</div>';
                 if (fig.birth_year != null && fig.age != null) {
@@ -280,8 +399,15 @@
                         var name = aff.entity_name ? titleCase(aff.entity_name) : formatEntityFallback(aff);
                         var linkType = formatLinkType(aff.link_type);
                         var hiddenClass = idx >= 5 ? ' hidden-item' : '';
+                        // Entity sprite - try entity type icon first, fallback to race
+                        var sprite = '';
+                        if (aff.entity_type) {
+                            sprite = '<img src="/static/icons/entities/' + aff.entity_type + '.png" class="inline-icon" alt="" onerror="this.onerror=null; var race=\'' + (aff.entity_race || '') + '\'; if(race) { this.src=\'/static/icons/races/\'+race.toUpperCase()+\'.png\'; } else { this.style.display=\'none\'; }">';
+                        } else if (aff.entity_race) {
+                            sprite = '<img src="/static/icons/races/' + aff.entity_race.toUpperCase() + '.png" class="inline-icon" alt="" onerror="this.style.display=\'none\'">';
+                        }
                         html += '<div class="entity-list-item' + hiddenClass + '"><span class="link-type">' + linkType + '</span>: ';
-                        html += '<a href="#" class="entity-link" data-type="entity" data-id="' + aff.entity_id + '">' + name + '</a></div>';
+                        html += sprite + '<a href="#" class="entity-link" data-type="entity" data-id="' + aff.entity_id + '">' + name + '</a></div>';
                     });
                     if (data.affiliations.length > 5) {
                         html += '<div class="expand-more-btn" data-count="' + (data.affiliations.length - 5) + '">... and ' + (data.affiliations.length - 5) + ' more</div>';
@@ -318,7 +444,11 @@
                             lastYear = ev.year;
                         }
                         html += '<div class="timeline-event">';
-                        html += '<span class="timeline-type">' + (ev.type_label || ev.type || 'Event') + '</span>';
+                        // Event icon
+                        var icon = getEventIcon(ev);
+                        if (icon) {
+                            html += icon;
+                        }
                         // Build description
                         var desc = formatEventDescription(ev, fig.id);
                         if (desc) {
@@ -393,21 +523,67 @@
             entity: function(data) {
                 var ent = data.entity;
                 var html = '<div class="entity-details">';
-                html += '<div class="entity-row"><span class="entity-label">Type:</span> ' + (ent.type || '-') + '</div>';
+                var typeLabel = (ent.type || '-').replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                html += '<div class="entity-row"><span class="entity-label">Type:</span> ' + typeLabel + '</div>';
                 html += '<div class="entity-row"><span class="entity-label">Race:</span> ' + (ent.race_label || ent.race || '-') + '</div>';
 
-                // Positions
+                // Positions - grouped by hierarchy
                 if (data.positions && data.positions.length > 0) {
-                    html += '<div class="entity-section"><div class="entity-section-title">Positions (' + data.positions.length + ')</div>';
-                    html += '<div class="expandable-list" data-limit="10">';
-                    data.positions.forEach(function(pos, idx) {
-                        var holder = pos.holder_name ? ' - <a href="#" class="entity-link" data-type="figure" data-id="' + pos.histfig_id + '">' + titleCase(pos.holder_name) + '</a>' : '';
-                        var hiddenClass = idx >= 10 ? ' hidden-item' : '';
-                        html += '<div class="entity-list-item' + hiddenClass + '">' + titleCase(pos.name) + holder + '</div>';
+                    var categories = {
+                        rulers: { label: 'Rulers', icon: '♔', positions: [], keywords: ['king', 'queen', 'emperor', 'empress', 'monarch', 'lord', 'lady', 'duke', 'duchess', 'baron', 'count', 'earl', 'mayor', 'chief', 'law-giver', 'ruler'] },
+                        military: { label: 'Military', icon: '⚔', positions: [], keywords: ['general', 'captain', 'commander', 'marshal', 'warlord', 'military', 'guard', 'soldier', 'warrior', 'knight', 'executioner', 'constable', 'sheriff', 'militia'] },
+                        religious: { label: 'Religious', icon: '✝', positions: [], keywords: ['priest', 'high priest', 'prophet', 'oracle', 'druid', 'shaman', 'bishop', 'cleric', 'religious', 'holy', 'divine'] },
+                        admin: { label: 'Administration', icon: '📜', positions: [], keywords: ['counselor', 'advisor', 'minister', 'chancellor', 'secretary', 'administrator', 'keeper', 'treasurer', 'chamberlain', 'steward', 'manager', 'bookkeeper', 'seal'] },
+                        services: { label: 'Services', icon: '⚒', positions: [], keywords: ['chef', 'cook', 'doctor', 'physician', 'healer', 'butler', 'servant', 'maid', 'caretaker', 'beast', 'animal', 'stable', 'cup-bearer', 'food', 'drink', 'grain', 'brewer', 'farmer'] },
+                        other: { label: 'Other', icon: '•', positions: [] }
+                    };
+
+                    data.positions.forEach(function(pos) {
+                        var nameLower = (pos.name || '').toLowerCase();
+                        var categorized = false;
+                        for (var cat in categories) {
+                            if (cat === 'other') continue;
+                            var found = categories[cat].keywords.some(function(kw) {
+                                return nameLower.indexOf(kw) !== -1;
+                            });
+                            if (found) {
+                                categories[cat].positions.push(pos);
+                                categorized = true;
+                                break;
+                            }
+                        }
+                        if (!categorized) {
+                            categories.other.positions.push(pos);
+                        }
                     });
-                    if (data.positions.length > 10) {
-                        html += '<div class="expand-more-btn" data-count="' + (data.positions.length - 10) + '">... and ' + (data.positions.length - 10) + ' more</div>';
-                    }
+
+                    html += '<div class="entity-section"><div class="entity-section-title">Positions (' + data.positions.length + ')</div>';
+                    html += '<div class="positions-hierarchy">';
+
+                    ['rulers', 'military', 'religious', 'admin', 'services', 'other'].forEach(function(catKey) {
+                        var cat = categories[catKey];
+                        if (cat.positions.length === 0) return;
+
+                        html += '<div class="position-category">';
+                        html += '<div class="position-category-header"><span class="category-icon">' + cat.icon + '</span> ' + cat.label + ' (' + cat.positions.length + ')</div>';
+                        html += '<div class="position-category-list expandable-list" data-limit="5">';
+                        cat.positions.forEach(function(pos, idx) {
+                            var holder = '';
+                            if (pos.holder_name) {
+                                var sprite = pos.holder_race ? '<img src="/static/icons/races/' + pos.holder_race + '.png" class="inline-icon" alt="" onerror="this.style.display=\'none\'">' : '';
+                                holder = ' - ' + sprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + pos.histfig_id + '">' + titleCase(pos.holder_name) + '</a>';
+                            } else {
+                                holder = ' - <span class="vacant">Vacant</span>';
+                            }
+                            var hiddenClass = idx >= 5 ? ' hidden-item' : '';
+                            html += '<div class="entity-list-item position-item' + hiddenClass + '">' + titleCase(pos.name) + holder + '</div>';
+                        });
+                        if (cat.positions.length > 5) {
+                            html += '<div class="expand-more-btn" data-count="' + (cat.positions.length - 5) + '">... and ' + (cat.positions.length - 5) + ' more</div>';
+                        }
+                        html += '</div></div>';
+                    });
+
                     html += '</div></div>';
                 }
 

@@ -72,7 +72,9 @@ python build.py legends.xml [legends_plus.xml]
 
 [MIT](LICENSE)
 
-![db.png](docs/db.png)
+![fig-mod.png](docs/fig-mod.png)
 ![fig.png](docs/fig.png)
+![sit-mod.png](docs/sit-mod.png)
+![db.png](docs/db.png)
 ![sit.png](docs/sit.png)
 ![art.png](docs/art.png)

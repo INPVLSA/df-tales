@@ -1673,7 +1673,7 @@ def api_entity(entity_id):
 
     # Get positions with current holders
     positions = db.execute("""
-        SELECT ep.*, hf.name as holder_name
+        SELECT ep.*, epa.histfig_id, hf.name as holder_name, hf.race as holder_race
         FROM entity_positions ep
         LEFT JOIN entity_position_assignments epa ON ep.entity_id = epa.entity_id AND ep.position_id = epa.position_id
         LEFT JOIN historical_figures hf ON epa.histfig_id = hf.id

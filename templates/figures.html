@@ -43,7 +43,7 @@
             <td>{{ fig.id }}</td>
             <td><a href="#" class="entity-link" data-type="figure" data-id="{{ fig.id }}">{{ fig.name|title if fig.name else '(unnamed)' }}</a></td>
             <td class="race-cell">{% set ri = get_race_info(fig.race) %}{% if ri.img %}<img src="{{ ri.img }}" class="race-icon" alt="">{% else %}<span class="race-icon-text">{{ ri.icon }}</span>{% endif %} {{ ri.label }}</td>
-            <td>{{ fig.caste or '-' }}</td>
+            <td>{% if fig.caste and fig.caste|lower not in ['male', 'female', 'default'] %}{{ fig.caste }}{% else %}-{% endif %}</td>
             <td>{{ fig.birth_year if fig.birth_year else '-' }}</td>
             <td>{% if fig.death_year == -1 %}<span class="alive">Alive</span>{% else %}{{ fig.death_year if fig.death_year else '-' }}{% endif %}</td>
             <td>{% if fig.birth_year and current_year %}{% if fig.death_year == -1 %}{{ current_year - fig.birth_year }}{% elif fig.death_year %}{{ fig.death_year - fig.birth_year }}{% else %}-{% endif %}{% else %}-{% endif %}</td>
@@ -281,7 +281,7 @@
                     '<td>' + fig.id + '</td>' +
                     '<td><a href="#" class="entity-link" data-type="figure" data-id="' + fig.id + '">' + titleCase(fig.name) + '</a></td>' +
                     '<td class="race-cell">' + (fig.race_img ? '<img src="' + fig.race_img + '" class="race-icon" alt="">' : '<span class="race-icon-text">' + fig.race_icon + '</span>') + ' ' + fig.race_label + '</td>' +
-                    '<td>' + (fig.caste || '-') + '</td>' +
+                    '<td>' + (fig.caste && ['male', 'female', 'default'].indexOf(fig.caste.toLowerCase()) === -1 ? fig.caste : '-') + '</td>' +
                     '<td>' + (fig.birth_year != null ? fig.birth_year : '-') + '</td>' +
                     '<td>' + (fig.death_year === -1 ? '<span class="alive">Alive</span>' : (fig.death_year != null ? fig.death_year : '-')) + '</td>' +
                     '<td>' + (fig.age != null ? fig.age : '-') + '</td>' +
