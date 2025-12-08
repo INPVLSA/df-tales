@@ -1712,6 +1712,12 @@ a:hover {
     margin-top: 0;
 }
 
+.timeline-age {
+    font-family: inherit;
+    font-size: 8px;
+    color: #666;
+}
+
 .timeline-event {
     padding: 0.25rem 0;
     padding-left: 1rem;

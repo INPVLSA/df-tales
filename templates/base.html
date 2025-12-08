@@ -497,10 +497,16 @@
                     html += '<div class="entity-section"><div class="entity-section-title">Life Events (' + data.events.length + (data.events.length >= 100 ? '+' : '') + ')</div>';
                     html += '<div class="timeline">';
                     var lastYear = null;
+                    var birthYear = fig.birth_year;
                     data.events.forEach(function(ev) {
                         var yearChanged = ev.year !== lastYear;
                         if (yearChanged) {
-                            html += '<div class="timeline-year">' + (ev.year || '?') + '</div>';
+                            var ageStr = '';
+                            if (birthYear != null && ev.year != null && ev.year >= birthYear) {
+                                var age = ev.year - birthYear;
+                                ageStr = ' <span class="timeline-age">(age ' + age + ')</span>';
+                            }
+                            html += '<div class="timeline-year">' + (ev.year || '?') + ageStr + '</div>';
                             lastYear = ev.year;
                         }
                         html += '<div class="timeline-event">';
