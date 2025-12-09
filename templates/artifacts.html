@@ -55,7 +55,13 @@
         {% for artifact in artifacts %}
         <tr>
             <td>{{ artifact.id }}</td>
-            <td class="artifact-name">{{ artifact.name|title if artifact.name else '-' }}</td>
+            <td class="artifact-name">
+                {% if artifact.name %}
+                    <a href="#" class="entity-link" data-type="artifact" data-id="{{ artifact.id }}">{{ artifact.name|title }}</a>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
             <td class="artifact-type-col">
                 {% set ai = get_artifact_type_info(artifact.item_type) %}
                 {% if ai.img %}<img src="{{ ai.img }}" class="artifact-icon" alt="">{% else %}<span class="artifact-icon-text">{{ ai.icon }}</span>{% endif %}
