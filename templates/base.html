@@ -619,6 +619,10 @@
                     html += '<div class="entity-row"><span class="entity-label">Civilization:</span> ';
                     html += '<a href="#" class="entity-link" data-type="entity" data-id="' + site.civ_id + '">' + titleCase(site.civ_name) + '</a></div>';
                 }
+                if (site.owner_name && site.cur_owner_id !== site.civ_id) {
+                    html += '<div class="entity-row"><span class="entity-label">Current Owner:</span> ';
+                    html += '<a href="#" class="entity-link" data-type="entity" data-id="' + site.cur_owner_id + '">' + titleCase(site.owner_name) + '</a></div>';
+                }
 
                 // Structures
                 if (data.structures && data.structures.length > 0) {
@@ -634,8 +638,80 @@
                     html += '</div></div>';
                 }
 
+                // Linked Figures
+                if (data.linked_figures && data.linked_figures.length > 0) {
+                    html += '<div class="entity-section"><div class="entity-section-title">Linked Figures (' + data.linked_figures.length + ')</div>';
+                    html += '<div class="expandable-list" data-limit="10">';
+                    data.linked_figures.forEach(function(fig, idx) {
+                        var hiddenClass = idx >= 10 ? ' hidden-item' : '';
+                        var sprite = fig.race_img
+                            ? '<img src="' + fig.race_img + '" class="inline-icon" alt="">'
+                            : '<span class="inline-icon-text">' + (fig.race_icon || '?') + '</span>';
+                        var linkType = fig.link_type ? ' <span class="link-type">(' + fig.link_type.replace(/_/g, ' ') + ')</span>' : '';
+                        html += '<div class="entity-list-item' + hiddenClass + '">' + sprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + fig.id + '">' + titleCase(fig.name) + '</a>' + linkType + '</div>';
+                    });
+                    if (data.linked_figures.length > 10) {
+                        html += '<div class="expand-more-btn" data-count="' + (data.linked_figures.length - 10) + '">... and ' + (data.linked_figures.length - 10) + ' more</div>';
+                    }
+                    html += '</div></div>';
+                }
+
+                // Artifacts
+                if (data.artifacts && data.artifacts.length > 0) {
+                    html += '<div class="entity-section"><div class="entity-section-title">Artifacts (' + data.artifacts.length + ')</div>';
+                    html += '<div class="expandable-list" data-limit="5">';
+                    data.artifacts.forEach(function(art, idx) {
+                        var hiddenClass = idx >= 5 ? ' hidden-item' : '';
+                        var artType = art.item_type ? art.item_type.replace(/_/g, ' ') : '';
+                        html += '<div class="entity-list-item' + hiddenClass + '"><a href="#" class="entity-link" data-type="artifact" data-id="' + art.id + '">' + titleCase(art.name) + '</a>';
+                        if (artType) html += ' <span class="item-type">(' + artType + ')</span>';
+                        html += '</div>';
+                    });
+                    if (data.artifacts.length > 5) {
+                        html += '<div class="expand-more-btn" data-count="' + (data.artifacts.length - 5) + '">... and ' + (data.artifacts.length - 5) + ' more</div>';
+                    }
+                    html += '</div></div>';
+                }
+
+                // Events (using timeline format like figure modal)
+                if (data.events && data.events.length > 0) {
+                    html += '<div class="entity-section"><div class="entity-section-title">Recent Events (' + data.events.length + ')</div>';
+                    html += '<div class="timeline-events site-events">';
+                    var lastYear = null;
+                    var eventCount = 0;
+                    data.events.forEach(function(ev, idx) {
+                        // For site context, show figure name first
+                        var desc = formatEventDescription(ev, null);
+                        var prefix = '';
+                        if (ev.hf_name) {
+                            var figSprite = ev.hf_race ? '<img src="/static/icons/races/' + ev.hf_race.toUpperCase() + '.png" class="event-icon" alt="" onerror="this.style.display=\'none\'">' : '';
+                            prefix = figSprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + ev.hfid + '">' + titleCase(ev.hf_name) + '</a> ';
+                        }
+                        // Skip events with no content
+                        if (!desc && !prefix) return;
+
+                        var yearChanged = ev.year !== lastYear;
+                        if (yearChanged) {
+                            html += '<div class="timeline-year">' + (ev.year || '?') + '</div>';
+                            lastYear = ev.year;
+                        }
+                        html += '<div class="timeline-event">';
+                        var icon = getEventIcon(ev);
+                        if (icon) html += icon;
+                        html += '<span class="timeline-desc">' + prefix + (desc || '') + '</span>';
+                        html += '</div>';
+                        eventCount++;
+                    });
+                    html += '</div></div>';
+                }
+
                 html += '</div>';
-                html += '<div class="modal-footer"><a href="/sites?q=' + encodeURIComponent(site.name || '') + '" class="btn btn-sm">View in List</a></div>';
+                html += '<div class="modal-footer">';
+                if (site.coords) {
+                    html += '<a href="/map#site-' + site.id + '" class="btn btn-sm site-map-btn" data-site-id="' + site.id + '" data-coords="' + site.coords + '">View on Map</a> ';
+                }
+                html += '<a href="/sites?q=' + encodeURIComponent(site.name || '') + '" class="btn btn-sm">View in List</a>';
+                html += '</div>';
                 return html;
             },
 
@@ -812,6 +888,18 @@
                         item.classList.remove('hidden-item');
                     });
                     expandBtn.remove();
+                }
+                return;
+            }
+            // Handle "View on Map" button for sites
+            var mapBtn = e.target.closest('.site-map-btn');
+            if (mapBtn) {
+                e.preventDefault();
+                var coords = mapBtn.dataset.coords;
+                var siteId = mapBtn.dataset.siteId;
+                if (coords) {
+                    // Navigate to map with site coordinates in hash
+                    window.location.href = '/map#site=' + siteId + '&coords=' + coords;
                 }
             }
         });

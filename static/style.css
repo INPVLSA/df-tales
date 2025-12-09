@@ -1922,8 +1922,21 @@ a:hover {
     font-size: 12px;
 }
 
-.entity-list-item .link-type {
+/* Artifacts in site modal - slightly larger font */
+.entity-section-title:has(+ .expandable-list .entity-link[data-type="artifact"]) + .expandable-list .entity-list-item,
+.entity-section:has(.entity-link[data-type="artifact"]) .entity-list-item {
+    font-size: 13px;
+}
+
+.entity-list-item .link-type,
+.entity-list-item .item-type {
     color: #666;
+    font-size: 11px;
+}
+
+.entity-list-item .event-year {
+    color: #f80;
+    font-weight: bold;
 }
 
 .entity-list-item.more {
@@ -2045,6 +2058,12 @@ a:hover {
 
 .timeline-desc .entity-link {
     color: #0ff;
+}
+
+/* Site events in modal - limit height */
+.site-events {
+    max-height: 250px;
+    overflow-y: auto;
 }
 
 /* Expandable lists in modal */

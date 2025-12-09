@@ -82,7 +82,7 @@
                  data-name="{{ site.name }}"
                  data-type="{{ site.type_label }}"
                  data-civ="{{ site.civ_label or '' }}"
-                 style="left: {{ ((site.x - min_x) / map_width * 100) }}%; top: {{ ((site.y - min_y) / map_height * 100) }}%;"
+                 style="left: {{ ((site.x - min_x + 0.5) / map_width * 100) }}%; top: {{ ((site.y - min_y + 0.5) / map_height * 100) }}%;"
                  title="{{ site.name }}">
                 {% if site.type_img %}
                 <img src="{{ site.type_img }}" alt="{{ site.type_icon }}" class="marker-icon">
@@ -98,7 +98,7 @@
                  data-name="{{ peak.name }}"
                  data-height="{{ peak.height }}"
                  data-volcano="{{ peak.is_volcano }}"
-                 style="left: {{ ((peak.x - min_x) / map_width * 100) }}%; top: {{ ((peak.y - min_y) / map_height * 100) }}%;"
+                 style="left: {{ ((peak.x - min_x + 0.5) / map_width * 100) }}%; top: {{ ((peak.y - min_y + 0.5) / map_height * 100) }}%;"
                  title="{{ peak.name }}">
                 <span class="marker-text peak-icon">&#9650;</span>
             </div>
@@ -231,8 +231,8 @@
         if (result) {
             var x = parseFloat(result.dataset.x);
             var y = parseFloat(result.dataset.y);
-            var xPercent = ((x - minX) / mapWidth) * 100;
-            var yPercent = ((y - minY) / mapHeight) * 100;
+            var xPercent = ((x - minX + 0.5) / mapWidth) * 100;
+            var yPercent = ((y - minY + 0.5) / mapHeight) * 100;
 
             navigateTo(xPercent, yPercent);
             searchResults.classList.remove('open');
@@ -443,8 +443,8 @@
             var mapWidth = {{ map_width }};
             var mapHeight = {{ map_height }};
 
-            var xPercent = ((x - minX) / mapWidth) * 100;
-            var yPercent = ((y - minY) / mapHeight) * 100;
+            var xPercent = ((x - minX + 0.5) / mapWidth) * 100;
+            var yPercent = ((y - minY + 0.5) / mapHeight) * 100;
 
             navigateTo(xPercent, yPercent);
 
@@ -457,6 +457,47 @@
             }
         });
     });
+
+    // Handle hash navigation from site modal "View on Map" button
+    function handleHashNavigation() {
+        var hash = window.location.hash;
+        if (hash && hash.indexOf('site=') !== -1) {
+            var params = {};
+            hash.substring(1).split('&').forEach(function(part) {
+                var kv = part.split('=');
+                if (kv.length === 2) params[kv[0]] = kv[1];
+            });
+
+            if (params.coords) {
+                var coords = params.coords.split(',');
+                if (coords.length === 2) {
+                    var x = parseInt(coords[0]);
+                    var y = parseInt(coords[1]);
+                    var xPercent = ((x - minX + 0.5) / mapWidth) * 100;
+                    var yPercent = ((y - minY + 0.5) / mapHeight) * 100;
+
+                    // Small delay to ensure page is ready
+                    setTimeout(function() {
+                        navigateTo(xPercent, yPercent);
+
+                        // Highlight the site marker
+                        if (params.site) {
+                            var marker = document.querySelector('.site-marker[data-id="' + params.site + '"]');
+                            if (marker) {
+                                marker.classList.add('highlight');
+                                setTimeout(function() { marker.classList.remove('highlight'); }, 2000);
+                            }
+                        }
+                    }, 100);
+                }
+            }
+            // Clear hash after navigation
+            history.replaceState(null, '', window.location.pathname);
+        }
+    }
+
+    // Run on page load
+    handleHashNavigation();
 })();
 </script>
 {% endblock %}

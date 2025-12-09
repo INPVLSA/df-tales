@@ -1299,6 +1299,30 @@ def world_map():
 
     current_world = get_current_world()
 
+    # Get world bounds from regions (same as terrain map generator)
+    min_x, min_y, max_x, max_y = float('inf'), float('inf'), 0, 0
+    regions_data = db.execute("""
+        SELECT coords FROM regions WHERE coords IS NOT NULL AND coords != ''
+    """).fetchall()
+
+    for (coords_str,) in regions_data:
+        for pair in coords_str.split('|'):
+            if ',' in pair:
+                try:
+                    x, y = map(int, pair.split(','))
+                    min_x, max_x = min(min_x, x), max(max_x, x)
+                    min_y, max_y = min(min_y, y), max(max_y, y)
+                except ValueError:
+                    continue
+
+    # Fallback if no regions
+    if min_x == float('inf'):
+        min_x, min_y, max_x, max_y = 0, 0, 128, 128
+
+    # Calculate map dimensions from regions
+    map_width = max_x - min_x + 1
+    map_height = max_y - min_y + 1
+
     # Get all sites with coordinates
     sites_data = db.execute("""
         SELECT s.id, s.name, s.type, s.coords, e.race as civ_race
@@ -1307,18 +1331,14 @@ def world_map():
         WHERE s.coords IS NOT NULL AND s.coords != ''
     """).fetchall()
 
-    # Parse coordinates and find bounds
+    # Parse site coordinates
     sites_list = []
-    min_x, max_x, min_y, max_y = float('inf'), 0, float('inf'), 0
-
     for row in sites_data:
         site = dict(row)
         try:
             x, y = map(int, site['coords'].split(','))
             site['x'] = x
             site['y'] = y
-            min_x, max_x = min(min_x, x), max(max_x, x)
-            min_y, max_y = min(min_y, y), max(max_y, y)
 
             type_info = get_site_type_info(site.get('type'))
             site['type_label'] = type_info['label']
@@ -1334,10 +1354,6 @@ def world_map():
             sites_list.append(site)
         except (ValueError, AttributeError):
             continue
-
-    # Calculate map dimensions
-    map_width = max_x - min_x + 1 if max_x >= min_x else 1
-    map_height = max_y - min_y + 1 if max_y >= min_y else 1
 
     # Get site type counts for legend
     type_counts = db.execute("""
@@ -1360,16 +1376,9 @@ def world_map():
             x, y = map(int, peak['coords'].split(','))
             peak['x'] = x
             peak['y'] = y
-            # Update bounds to include peaks
-            min_x, max_x = min(min_x, x), max(max_x, x)
-            min_y, max_y = min(min_y, y), max(max_y, y)
             peaks_list.append(peak)
         except (ValueError, AttributeError):
             continue
-
-    # Recalculate map dimensions after including peaks
-    map_width = max_x - min_x + 1 if max_x >= min_x else 1
-    map_height = max_y - min_y + 1 if max_y >= min_y else 1
 
     # Check if map image exists (terrain or uploaded)
     world_id = current_world['id'] if current_world else None
@@ -1382,8 +1391,8 @@ def world_map():
     return render_template('map.html',
                          sites=sites_list,
                          peaks=peaks_list,
-                         min_x=min_x if min_x != float('inf') else 0,
-                         min_y=min_y if min_y != float('inf') else 0,
+                         min_x=min_x,
+                         min_y=min_y,
                          map_width=map_width,
                          map_height=map_height,
                          type_counts=type_counts,
@@ -1724,10 +1733,14 @@ def api_site(site_id):
     if not db:
         return jsonify({'error': 'Database not found'}), 404
 
+    # Get site with civilization and current owner info
     site = db.execute("""
-        SELECT s.*, e.name as civ_name, e.race as civ_race
+        SELECT s.*,
+               e.name as civ_name, e.race as civ_race,
+               owner.name as owner_name, owner.race as owner_race
         FROM sites s
         LEFT JOIN entities e ON s.civ_id = e.id
+        LEFT JOIN entities owner ON s.cur_owner_id = owner.id
         WHERE s.id = ?
     """, [site_id]).fetchone()
 
@@ -1750,9 +1763,72 @@ def api_site(site_id):
         st['type_label'] = st_info['label']
         structures_list.append(st)
 
+    # Get linked historical figures
+    linked_figures = db.execute("""
+        SELECT hf.id, hf.name, hf.race, hsl.link_type
+        FROM hf_site_links hsl
+        JOIN historical_figures hf ON hsl.hfid = hf.id
+        WHERE hsl.site_id = ?
+        ORDER BY hsl.link_type, hf.name
+        LIMIT 50
+    """, [site_id]).fetchall()
+
+    figures_list = []
+    for row in linked_figures:
+        f = dict(row)
+        race = f.get('race') or ''
+        race_info = get_race_info(race.upper())
+        f['race_icon'] = race_info['icon']
+        f['race_img'] = race_info['img']
+        f['race_label'] = race_info['label']
+        figures_list.append(f)
+
+    # Get artifacts at this site
+    artifacts = db.execute("""
+        SELECT id, name, item_type, item_subtype
+        FROM artifacts
+        WHERE site_id = ?
+        ORDER BY name
+        LIMIT 20
+    """, [site_id]).fetchall()
+
+    artifacts_list = [dict(a) for a in artifacts]
+
+    # Get historical events at this site (limited)
+    events_cursor = db.execute("""
+        SELECT he.id, he.year, he.type, he.hfid, he.slayer_hfid, he.extra_data,
+               hf.name as hf_name, hf.race as hf_race,
+               slayer.name as slayer_name, slayer.race as slayer_race
+        FROM historical_events he
+        LEFT JOIN historical_figures hf ON he.hfid = hf.id
+        LEFT JOIN historical_figures slayer ON he.slayer_hfid = slayer.id
+        WHERE he.site_id = ?
+        ORDER BY he.year DESC
+        LIMIT 20
+    """, [site_id])
+
+    events_list = []
+    for ev_row in events_cursor.fetchall():
+        ev = {
+            'id': ev_row['id'],
+            'year': ev_row['year'],
+            'type': ev_row['type'],
+            'hfid': ev_row['hfid'],
+            'slayer_hfid': ev_row['slayer_hfid'],
+            'hf_name': ev_row['hf_name'],
+            'hf_race': ev_row['hf_race'],
+            'slayer_name': ev_row['slayer_name'],
+            'slayer_race': ev_row['slayer_race'],
+            'extra_data': ev_row['extra_data']
+        }
+        events_list.append(ev)
+
     return jsonify({
         'site': site_dict,
-        'structures': structures_list
+        'structures': structures_list,
+        'linked_figures': figures_list,
+        'artifacts': artifacts_list,
+        'events': events_list
     })
 
 
