@@ -168,12 +168,13 @@
 
     // Close legend when clicking outside
     document.addEventListener('click', function(e) {
-        if (!legend.contains(e.target) && e.target !== legendToggle) {
+        if (window.innerWidth < 1024 && !legend.contains(e.target) && e.target !== legendToggle) {
             legend.classList.remove('open');
             legendToggle.classList.remove('active');
         }
+
         // Close search results when clicking outside
-        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+        if (window.innerWidth < 1024 && !searchResults.contains(e.target) && e.target !== searchInput) {
             searchResults.classList.remove('open');
         }
     });
