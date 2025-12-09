@@ -472,7 +472,7 @@ EVENT_TYPE_DATA = {
 }
 
 
-def get_artifact_type_info(artifact_type):
+def get_artifact_type_info(artifact_type, artifact_subtype=None):
     """Get artifact type label, text icon, and image icon path."""
     if not artifact_type:
         return {'label': '-', 'icon': '·', 'img': None}
@@ -480,6 +480,12 @@ def get_artifact_type_info(artifact_type):
     icon = '·'
     label = None
     img = None
+
+    # Special handling for written content containers (scrolls use book icon)
+    if artifact_subtype and artifact_subtype.lower() in ('scroll', 'quire', 'codex'):
+        img = '/static/icons/artifacts/book.png'
+        label = artifact_subtype.replace('_', ' ').title()
+        return {'label': label, 'icon': '📜', 'img': img}
 
     # Check for image icon
     for ext in ['.png', '.gif']:
@@ -1995,7 +2001,8 @@ def written_content():
                hf.name as author_name,
                hf.race as author_race,
                a.id as artifact_id,
-               a.item_type as artifact_type
+               a.item_type as artifact_type,
+               a.item_subtype as artifact_subtype
                FROM written_content wc
                LEFT JOIN historical_figures hf ON wc.author_hfid = hf.id
                LEFT JOIN artifacts a ON a.name = wc.title COLLATE NOCASE

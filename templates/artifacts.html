@@ -63,7 +63,7 @@
                 {% endif %}
             </td>
             <td class="artifact-type-col">
-                {% set ai = get_artifact_type_info(artifact.item_type) %}
+                {% set ai = get_artifact_type_info(artifact.item_type, artifact.item_subtype) %}
                 {% if ai.img %}<img src="{{ ai.img }}" class="artifact-icon" alt="">{% else %}<span class="artifact-icon-text">{{ ai.icon }}</span>{% endif %}
                 {{ ai.label }}
             </td>

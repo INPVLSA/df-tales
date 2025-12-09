@@ -77,9 +77,9 @@
             </td>
             <td>
                 {% if wc.artifact_id %}
-                    {% set ai = get_artifact_type_info(wc.artifact_type) %}
+                    {% set ai = get_artifact_type_info(wc.artifact_type, wc.artifact_subtype) %}
                     {% if ai.img %}<img src="{{ ai.img }}" class="artifact-icon" alt="">{% else %}<span class="artifact-icon-text">{{ ai.icon }}</span>{% endif %}
-                    <a href="#" class="entity-link" data-type="artifact" data-id="{{ wc.artifact_id }}">{{ wc.artifact_type|replace('_', ' ')|title if wc.artifact_type else 'Artifact' }}</a>
+                    <a href="#" class="entity-link" data-type="artifact" data-id="{{ wc.artifact_id }}">{{ ai.label }}</a>
                 {% else %}
                     -
                 {% endif %}
