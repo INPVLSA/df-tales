@@ -11,6 +11,10 @@
         <button id="zoom-out" class="map-btn" title="Zoom Out">-</button>
         <button id="zoom-reset" class="map-btn" title="Reset">R</button>
         <button id="legend-toggle" class="map-btn active" title="Toggle Legend">&#9776;</button>
+        <div class="map-search-wrapper">
+            <input type="text" id="map-search" class="map-search-input" placeholder="Search sites...">
+            <div class="map-search-results" id="map-search-results"></div>
+        </div>
         <span class="map-info">{{ total_sites }} sites, {{ total_peaks }} peaks</span>
     </div>
 
@@ -122,6 +126,17 @@
     var isDragging = false;
     var startX, startY, startPanX, startPanY;
 
+    // Search elements
+    var searchInput = document.getElementById('map-search');
+    var searchResults = document.getElementById('map-search-results');
+    var searchTimeout = null;
+
+    // Map bounds for coordinate calculation
+    var minX = {{ min_x }};
+    var minY = {{ min_y }};
+    var mapWidth = {{ map_width }};
+    var mapHeight = {{ map_height }};
+
     function updateTransform() {
         canvas.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
     }
@@ -156,6 +171,80 @@
         if (!legend.contains(e.target) && e.target !== legendToggle) {
             legend.classList.remove('open');
             legendToggle.classList.remove('active');
+        }
+        // Close search results when clicking outside
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.classList.remove('open');
+        }
+    });
+
+    // Site search functionality
+    function titleCase(str) {
+        if (!str) return '(unnamed)';
+        return str.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    }
+
+    function performSearch(query) {
+        if (query.length < 2) {
+            searchResults.classList.remove('open');
+            return;
+        }
+
+        fetch('/map/search?q=' + encodeURIComponent(query))
+            .then(function(r) { return r.json(); })
+            .then(function(results) {
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="map-search-empty">No sites found</div>';
+                } else {
+                    var html = '';
+                    results.forEach(function(site) {
+                        var icon = site.type_img
+                            ? '<img src="' + site.type_img + '" alt="">'
+                            : '<span class="result-icon">' + site.type_icon + '</span>';
+                        html += '<div class="map-search-result" data-x="' + site.x + '" data-y="' + site.y + '" data-id="' + site.id + '">' +
+                            icon +
+                            '<span class="result-name">' + titleCase(site.name) + '</span>' +
+                            '<span class="result-type">' + site.type + '</span>' +
+                            '</div>';
+                    });
+                    searchResults.innerHTML = html;
+                }
+                searchResults.classList.add('open');
+            });
+    }
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            performSearch(searchInput.value.trim());
+        }, 200);
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (searchInput.value.trim().length >= 2) {
+            performSearch(searchInput.value.trim());
+        }
+    });
+
+    searchResults.addEventListener('click', function(e) {
+        var result = e.target.closest('.map-search-result');
+        if (result) {
+            var x = parseFloat(result.dataset.x);
+            var y = parseFloat(result.dataset.y);
+            var xPercent = ((x - minX) / mapWidth) * 100;
+            var yPercent = ((y - minY) / mapHeight) * 100;
+
+            navigateTo(xPercent, yPercent);
+            searchResults.classList.remove('open');
+            searchInput.value = '';
+
+            // Highlight the site marker briefly
+            var siteId = result.dataset.id;
+            var marker = document.querySelector('.site-marker[data-id="' + siteId + '"]');
+            if (marker) {
+                marker.classList.add('highlight');
+                setTimeout(function() { marker.classList.remove('highlight'); }, 2000);
+            }
         }
     });
 
@@ -260,7 +349,11 @@
 
         marker.addEventListener('click', function() {
             var id = marker.dataset.id;
-            window.location.href = '/site/' + id;
+            if (typeof EntityModal !== 'undefined' && EntityModal.load) {
+                EntityModal.load('site', id);
+            } else {
+                window.location.href = '/site/' + id;
+            }
         });
     });
 

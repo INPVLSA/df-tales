@@ -1393,6 +1393,48 @@ def world_map():
                          world_id=world_id)
 
 
+@app.route('/map/search')
+def map_search():
+    """Search sites for map navigation."""
+    db = get_db()
+    if not db:
+        return jsonify([])
+
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 2:
+        return jsonify([])
+
+    # Search sites by name, limit to 5 results
+    sites_data = db.execute("""
+        SELECT id, name, type, coords
+        FROM sites
+        WHERE coords IS NOT NULL AND coords != ''
+        AND name LIKE ?
+        ORDER BY name
+        LIMIT 5
+    """, [f'%{q}%']).fetchall()
+
+    results = []
+    for row in sites_data:
+        site = dict(row)
+        type_info = get_site_type_info(site.get('type'))
+        try:
+            x, y = map(int, site['coords'].split(','))
+            results.append({
+                'id': site['id'],
+                'name': site['name'] or '(unnamed)',
+                'type': type_info['label'],
+                'type_icon': type_info['icon'],
+                'type_img': type_info['img'],
+                'x': x,
+                'y': y
+            })
+        except (ValueError, AttributeError):
+            continue
+
+    return jsonify(results)
+
+
 @app.route('/peak/<int:peak_id>')
 def peak_detail(peak_id):
     """Display mountain peak details."""
