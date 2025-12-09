@@ -149,7 +149,8 @@ CREATE TABLE IF NOT EXISTS hf_relationships (
     source_hf INTEGER,
     target_hf INTEGER,
     relationship TEXT,
-    year INTEGER
+    year INTEGER,
+    UNIQUE(source_hf, target_hf, relationship, year)
 );
 CREATE INDEX IF NOT EXISTS idx_hf_rel_source ON hf_relationships(source_hf);
 CREATE INDEX IF NOT EXISTS idx_hf_rel_target ON hf_relationships(target_hf);

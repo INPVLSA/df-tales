@@ -527,7 +527,7 @@ def run_import(legends_path=None, plus_path=None):
             print("\nImporting relationships...")
             def import_rel(data):
                 cursor.execute(
-                    "INSERT INTO hf_relationships (source_hf, target_hf, relationship, year) VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO hf_relationships (source_hf, target_hf, relationship, year) VALUES (?, ?, ?, ?)",
                     (data.get('source_hf'), data.get('target_hf'), data.get('relationship'), data.get('year'))
                 )
             count = stream_elements(legends_plus_clean, 'historical_event_relationship', import_rel)
@@ -857,7 +857,7 @@ def run_merge_plus(world_id, db_path, plus_path):
         print("\nImporting relationships...")
         def import_rel(data):
             cursor.execute(
-                "INSERT OR REPLACE INTO hf_relationships (source_hf, target_hf, relationship, year) VALUES (?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO hf_relationships (source_hf, target_hf, relationship, year) VALUES (?, ?, ?, ?)",
                 (data.get('source_hf'), data.get('target_hf'), data.get('relationship'), data.get('year'))
             )
         count = stream_elements(legends_plus_clean, 'historical_event_relationship', import_rel)
