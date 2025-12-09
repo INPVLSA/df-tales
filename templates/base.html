@@ -202,6 +202,17 @@
             return 'Entity #' + entity.entity_id;
         }
 
+        // Render a site link with sprite icon
+        function renderSiteLink(siteId, siteName, siteType) {
+            var sprite = '';
+            if (siteType) {
+                var siteTypeKey = siteType.replace(/ /g, '_');
+                sprite = '<img src="/static/icons/sites/' + siteTypeKey + '.png" class="inline-icon" alt="" onerror="this.style.display=\'none\'">';
+            }
+            var name = siteName ? titleCase(siteName) : 'Site #' + siteId;
+            return sprite + '<a href="#" class="entity-link" data-type="site" data-id="' + siteId + '">' + name + '</a>';
+        }
+
         // Event state icons mapping
         var EVENT_STATE_ICONS = {
             'refugee': '/static/icons/events/refugee.png',
@@ -310,12 +321,7 @@
 
             // Site reference
             if (ev.site_name) {
-                var siteSprite = '';
-                if (ev.site_type) {
-                    var siteTypeKey = ev.site_type.replace(/ /g, '_');
-                    siteSprite = '<img src="/static/icons/sites/' + siteTypeKey + '.png" class="event-icon" alt="" onerror="this.style.display=\'none\'">';
-                }
-                parts.push('at ' + siteSprite + '<a href="#" class="entity-link" data-type="site" data-id="' + ev.site_id + '">' + titleCase(ev.site_name) + '</a>');
+                parts.push('at ' + renderSiteLink(ev.site_id, ev.site_name, ev.site_type));
             }
 
             // Death events
@@ -536,11 +542,10 @@
                     html += '<div class="entity-section"><div class="entity-section-title">Site Links (' + data.site_links.length + ')</div>';
                     html += '<div class="expandable-list" data-limit="5">';
                     data.site_links.forEach(function(sl, idx) {
-                        var name = sl.site_name ? titleCase(sl.site_name) : 'Site #' + sl.site_id;
                         var linkType = formatLinkType(sl.link_type);
                         var hiddenClass = idx >= 5 ? ' hidden-item' : '';
                         html += '<div class="entity-list-item' + hiddenClass + '"><span class="link-type">' + linkType + '</span>: ';
-                        html += '<a href="#" class="entity-link" data-type="site" data-id="' + sl.site_id + '">' + name + '</a></div>';
+                        html += renderSiteLink(sl.site_id, sl.site_name, sl.site_type) + '</div>';
                     });
                     if (data.site_links.length > 5) {
                         html += '<div class="expand-more-btn" data-count="' + (data.site_links.length - 5) + '">... and ' + (data.site_links.length - 5) + ' more</div>';
@@ -758,7 +763,7 @@
                 }
                 if (art.site_name) {
                     html += '<div class="entity-row"><span class="entity-label">Created at:</span> ';
-                    html += '<a href="#" class="entity-link" data-type="site" data-id="' + art.site_id + '">' + titleCase(art.site_name) + '</a></div>';
+                    html += renderSiteLink(art.site_id, art.site_name, art.site_type) + '</div>';
                 }
                 if (art.holder_name) {
                     html += '<div class="entity-row"><span class="entity-label">Held by:</span> ';

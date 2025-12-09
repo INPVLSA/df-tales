@@ -2179,7 +2179,7 @@ def api_artifact(artifact_id):
     artifact = db.execute("""
         SELECT a.*,
                hf.name as creator_name,
-               s.name as site_name,
+               s.name as site_name, s.type as site_type,
                holder.name as holder_name
         FROM artifacts a
         LEFT JOIN historical_figures hf ON a.creator_hfid = hf.id
