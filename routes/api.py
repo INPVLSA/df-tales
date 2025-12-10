@@ -15,6 +15,20 @@ from helpers import (
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+def get_artifact_display_name(artifact_dict):
+    """Build display name for artifact from available fields if name is empty."""
+    if artifact_dict.get('name'):
+        return artifact_dict['name']
+    parts = []
+    if artifact_dict.get('mat'):
+        parts.append(artifact_dict['mat'])
+    if artifact_dict.get('item_subtype'):
+        parts.append(artifact_dict['item_subtype'])
+    elif artifact_dict.get('item_type'):
+        parts.append(artifact_dict['item_type'])
+    return ' '.join(parts) if parts else None
+
+
 @api_bp.route('/figures/search')
 def figures_search():
     """Search figures by name for autocomplete."""
@@ -155,9 +169,9 @@ def figure(figure_id):
         # Get artifact name/type for artifact_created events
         artifact_id = ev_dict.get('artifact_id')
         if artifact_id:
-            artifact = db.execute("SELECT name, item_type FROM artifacts WHERE id = ?", [artifact_id]).fetchone()
+            artifact = db.execute("SELECT name, item_type, item_subtype, mat FROM artifacts WHERE id = ?", [artifact_id]).fetchone()
             if artifact:
-                ev_dict['artifact_name'] = artifact['name']
+                ev_dict['artifact_name'] = get_artifact_display_name(dict(artifact))
                 ev_dict['artifact_type'] = artifact['item_type']
         events_list.append(ev_dict)
 
@@ -249,14 +263,18 @@ def site(site_id):
 
     # Get artifacts at this site
     artifacts = db.execute("""
-        SELECT id, name, item_type, item_subtype
+        SELECT id, name, item_type, item_subtype, mat
         FROM artifacts
         WHERE site_id = ?
         ORDER BY name
         LIMIT 20
     """, [site_id]).fetchall()
 
-    artifacts_list = [dict(a) for a in artifacts]
+    artifacts_list = []
+    for a in artifacts:
+        art = dict(a)
+        art['name'] = get_artifact_display_name(art)
+        artifacts_list.append(art)
 
     # Get historical events at this site (limited)
     events_cursor = db.execute("""
@@ -294,9 +312,9 @@ def site(site_id):
         }
         # Get artifact name/type for artifact events
         if ev['artifact_id']:
-            artifact = db.execute("SELECT name, item_type FROM artifacts WHERE id = ?", [ev['artifact_id']]).fetchone()
+            artifact = db.execute("SELECT name, item_type, item_subtype, mat FROM artifacts WHERE id = ?", [ev['artifact_id']]).fetchone()
             if artifact:
-                ev['artifact_name'] = artifact['name']
+                ev['artifact_name'] = get_artifact_display_name(dict(artifact))
                 ev['artifact_type'] = artifact['item_type']
         events_list.append(ev)
 
@@ -333,6 +351,7 @@ def artifact(artifact_id):
         return jsonify({'error': 'Artifact not found'}), 404
 
     art_dict = dict(artifact)
+    art_dict['name'] = get_artifact_display_name(art_dict)
 
     # Add race info for creator
     if art_dict.get('creator_race'):
@@ -587,10 +606,10 @@ def written(written_id):
                 ref_data['entity_subtype'] = entity['type']
         elif ref['ref_type'] == 'artifact':
             artifact = db.execute("""
-                SELECT id, name, item_type FROM artifacts WHERE id = ?
+                SELECT id, name, item_type, item_subtype, mat FROM artifacts WHERE id = ?
             """, [ref['ref_id']]).fetchone()
             if artifact:
-                ref_data['name'] = artifact['name']
+                ref_data['name'] = get_artifact_display_name(dict(artifact))
                 ref_data['entity_type'] = 'artifact'
                 ref_data['item_type'] = artifact['item_type']
 
@@ -1203,9 +1222,11 @@ def event(event_id):
     # Resolve artifact if present
     artifact_id = event_dict.get('artifact_id') or extra.get('artifact_id')
     if artifact_id:
-        artifact = db.execute("SELECT id, name, item_type FROM artifacts WHERE id = ?", [artifact_id]).fetchone()
+        artifact = db.execute("SELECT id, name, item_type, item_subtype, mat FROM artifacts WHERE id = ?", [artifact_id]).fetchone()
         if artifact:
-            resolved['artifact'] = dict(artifact)
+            art_dict = dict(artifact)
+            art_dict['name'] = get_artifact_display_name(art_dict)
+            resolved['artifact'] = art_dict
 
     # Resolve structure if present
     structure_id = event_dict.get('structure_id') or extra.get('structure_id')
