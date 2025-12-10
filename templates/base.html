@@ -912,6 +912,11 @@
                             var typeLabel = ev.type_label || evType;
                             if (ev.type === 'artifact_created') {
                                 desc += 'created this artifact';
+                                // Show defeated circumstance
+                                if (ev.defeated_name) {
+                                    var defeatedSprite = ev.defeated_race_img ? '<img src="' + ev.defeated_race_img + '" class="event-icon" alt="" onerror="this.style.display=\'none\'">' : '';
+                                    desc += ' after defeating ' + defeatedSprite + '<a href="#" class="entity-link" data-type="figure" data-id="' + ev.defeated_hfid + '">' + titleCase(ev.defeated_name) + '</a>';
+                                }
                             } else if (ev.type === 'artifact_stored') {
                                 desc += 'stored this artifact';
                             } else if (ev.type === 'artifact_lost') {

@@ -431,7 +431,20 @@ def artifact(artifact_id):
                         ev_dict['entity_name'] = entity['name']
                         ev_dict['entity_type'] = entity['type']
 
-                # Get defeated figure info for item_stolen (looted from)
+                # Get creator info for artifact_created
+                creator_hfid = extra.get('creator_hfid')
+                if creator_hfid and not ev_dict.get('hf_name'):
+                    creator = db.execute("""
+                        SELECT id, name, race, caste FROM historical_figures WHERE id = ?
+                    """, [creator_hfid]).fetchone()
+                    if creator:
+                        ev_dict['hfid'] = creator['id']
+                        ev_dict['hf_name'] = creator['name']
+                        ev_dict['hf_race'] = creator['race']
+                        creator_race_info = get_race_info(creator['race'], creator['caste'])
+                        ev_dict['hf_race_img'] = creator_race_info['img']
+
+                # Get defeated figure info for item_stolen (looted from) or artifact_created circumstance
                 circumstance = extra.get('circumstance', {})
                 if isinstance(circumstance, dict):
                     defeated_id = circumstance.get('defeated')
