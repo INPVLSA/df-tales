@@ -1,6 +1,10 @@
-<center><img alt="ico.png" height="50" src="static/ico.png"/>&nbsp;&nbsp;&nbsp;&nbsp;<img alt="title.png" height="50" src="docs/title.png"/></center>
+<p align="center">
+  <img alt="DF Tales Icon" height="50" src="static/ico.png"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img alt="DF Tales" height="50" src="docs/title.png"/>
+</p>
 
-A web interface for exploring your Dwarf Fortress world history.
+<p align="center">A web interface for exploring your Dwarf Fortress world history.</p>
 
 
 ![fig.png](docs/fig.png)
