@@ -496,11 +496,54 @@ def world_map():
     except Exception:
         pass  # Table may not exist
 
+    # Get region boundaries for overlay
+    regions_list = []
+    try:
+        regions_data = db.execute("SELECT id, name, type, coords FROM regions WHERE type != 'Ocean'").fetchall()
+        for row in regions_data:
+            region = dict(row)
+            coords_str = region.get('coords', '')
+            if not coords_str:
+                continue
+            # Parse coordinates into a set of tiles
+            tiles = set()
+            for pair in coords_str.split('|'):
+                if ',' in pair:
+                    try:
+                        x, y = pair.split(',')[:2]
+                        tiles.add((int(x), int(y)))
+                    except ValueError:
+                        continue
+            if not tiles:
+                continue
+            # Find boundary edges (edges where adjacent tile is not in region)
+            edges = []
+            for (x, y) in tiles:
+                # Check each of 4 sides
+                if (x - 1, y) not in tiles:  # Left edge
+                    edges.append({'x1': x, 'y1': y, 'x2': x, 'y2': y + 1})
+                if (x + 1, y) not in tiles:  # Right edge
+                    edges.append({'x1': x + 1, 'y1': y, 'x2': x + 1, 'y2': y + 1})
+                if (x, y - 1) not in tiles:  # Top edge
+                    edges.append({'x1': x, 'y1': y, 'x2': x + 1, 'y2': y})
+                if (x, y + 1) not in tiles:  # Bottom edge
+                    edges.append({'x1': x, 'y1': y + 1, 'x2': x + 1, 'y2': y + 1})
+            if edges:
+                regions_list.append({
+                    'id': region.get('id'),
+                    'name': region.get('name'),
+                    'type': region.get('type'),
+                    'edges': edges
+                })
+    except Exception:
+        pass
+
     return render_template('map.html',
                          sites=sites_list,
                          peaks=peaks_list,
                          rivers=rivers_list,
                          roads=roads_list,
+                         regions=regions_list,
                          min_x=min_x,
                          min_y=min_y,
                          map_width=map_width,
@@ -510,6 +553,7 @@ def world_map():
                          total_peaks=len(peaks_list),
                          total_rivers=len(rivers_list),
                          total_roads=len([r for r in roads_list if r['type'] == 'road']),
+                         total_regions=len(regions_list),
                          has_map=has_map,
                          world_id=world_id,
                          world=current_world)

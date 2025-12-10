@@ -88,6 +88,14 @@
                     <span class="legend-label">Roads</span>
                     <span class="legend-count">({{ total_roads }})</span>
                 </label>
+                <!-- Hidden: Region boundaries (visually noisy, kept for future use)
+                <label class="legend-item">
+                    <input type="checkbox" id="toggle-regions" class="legend-toggle overlay-toggle">
+                    <span class="legend-icon-text" style="color: #888;">&#9634;</span>
+                    <span class="legend-label">Regions</span>
+                    <span class="legend-count">({{ total_regions }})</span>
+                </label>
+                -->
             </div>
         </div>
     </div>
@@ -567,10 +575,12 @@
     // River and road data from server
     var rivers = {{ rivers|tojson }};
     var roads = {{ roads|tojson }};
+    var regions = {{ regions|tojson }};
 
     // Overlay visibility state
     var showRivers = true;
     var showRoads = true;
+    var showRegions = false;
 
     // Tile size matches terrain map generation (32px per tile)
     var tileSize = 32;
@@ -595,6 +605,9 @@
     function drawOverlays() {
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
+        if (showRegions) {
+            drawRegions();
+        }
         if (showRivers) {
             drawRivers();
         }
@@ -680,6 +693,30 @@
         });
     }
 
+    // Draw region boundaries
+    function drawRegions() {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1;
+
+        regions.forEach(function(region) {
+            var edges = region.edges;
+            if (!edges || edges.length === 0) return;
+
+            ctx.beginPath();
+            edges.forEach(function(edge) {
+                // Convert edge coordinates to canvas pixels
+                var x1 = (edge.x1 - minX) * tileSize;
+                var y1 = (edge.y1 - minY) * tileSize;
+                var x2 = (edge.x2 - minX) * tileSize;
+                var y2 = (edge.y2 - minY) * tileSize;
+
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            });
+            ctx.stroke();
+        });
+    }
+
     // Toggle handlers
     document.getElementById('toggle-rivers').addEventListener('change', function() {
         showRivers = this.checked;
@@ -690,6 +727,14 @@
         showRoads = this.checked;
         drawOverlays();
     });
+
+    var toggleRegions = document.getElementById('toggle-regions');
+    if (toggleRegions) {
+        toggleRegions.addEventListener('change', function() {
+            showRegions = this.checked;
+            drawOverlays();
+        });
+    }
 
     // Initialize canvas on load
     setTimeout(function() {
