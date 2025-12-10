@@ -58,13 +58,15 @@ Note: Without DFHack, some features are limited (no structures, entities, relati
 ```bash
 git clone git@github.com:INPVLSA/df-world.git
 cd df-world
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
 
 Open http://localhost:5001
+
+> **Note:** Use `python3` instead of `python` on systems where Python 2 is the default.
 
 ### 3. Import Your World
 
