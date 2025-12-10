@@ -30,7 +30,7 @@
                 <td>
                     {% if peak.x is defined %}
                     ({{ peak.x }}, {{ peak.y }})
-                    <a href="{{ url_for('world_map') }}" class="map-link" title="View on map">&#x1F5FA;</a>
+                    <a href="{{ url_for('pages.world_map') }}" class="map-link" title="View on map">&#x1F5FA;</a>
                     {% else %}
                     Unknown
                     {% endif %}
@@ -45,6 +45,6 @@
 </div>
 
 <div class="detail-nav">
-    <a href="{{ url_for('world_map') }}" class="btn">&larr; Back to Map</a>
+    <a href="{{ url_for('pages.world_map') }}" class="btn">&larr; Back to Map</a>
 </div>
 {% endblock %}

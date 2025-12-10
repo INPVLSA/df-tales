@@ -75,7 +75,7 @@
 
     <div class="map-viewport" id="map-viewport" style="aspect-ratio: {{ map_width }} / {{ map_height }};">
         <div class="map-canvas{% if has_map %} has-bg{% endif %}" id="map-canvas"
-             {% if has_map %}style="background-image: url('{{ url_for('world_map_image', world_id=world_id) }}');"{% endif %}>
+             {% if has_map %}style="background-image: url('{{ url_for('worlds.world_map_image', world_id=world_id) }}');"{% endif %}>
             {% for site in sites %}
             <div class="map-marker site-marker type-{{ site.type|replace(' ', '-') }}"
                  data-id="{{ site.id }}"

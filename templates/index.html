@@ -43,7 +43,7 @@
     {% if current_world and not current_world.has_plus %}
     <div class="merge-section">
         <p class="hint">This world was imported without DFHack data. You can add extended data now:</p>
-        <form method="post" action="{{ url_for('merge_plus', world_id=current_world.id) }}" enctype="multipart/form-data" id="merge-form">
+        <form method="post" action="{{ url_for('worlds.merge_plus', world_id=current_world.id) }}" enctype="multipart/form-data" id="merge-form">
             <div class="merge-area">
                 <label class="upload-label merge-label">
                     <span class="upload-name" id="merge-plus-name">Select legends_plus.xml</span>
@@ -68,7 +68,7 @@
     {% if current_world %}
     <div class="merge-section nav-hidden">
         <p class="hint">Upload world map image for the Map view:</p>
-        <form method="post" action="{{ url_for('upload_map', world_id=current_world.id) }}" enctype="multipart/form-data" id="map-upload-form">
+        <form method="post" action="{{ url_for('worlds.upload_map', world_id=current_world.id) }}" enctype="multipart/form-data" id="map-upload-form">
             <div class="merge-area">
                 <label class="upload-label merge-label">
                     <span class="upload-name" id="world-map-name">{% if current_world.has_map %}Map uploaded (click to replace){% else %}Select world_map.bmp{% endif %}</span>
@@ -159,7 +159,7 @@ function deleteWorld(worldId, worldName) {
 <div class="section">
     <h3>Import Data</h3>
 
-    <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" id="upload-form">
+    <form method="post" action="{{ url_for('worlds.upload') }}" enctype="multipart/form-data" id="upload-form">
         <div class="upload-area" id="upload-area">
             <p>Upload your legends XML files</p>
             <div class="upload-inputs">
@@ -181,7 +181,7 @@ function deleteWorld(worldId, worldName) {
     </form>
     <p class="hint">This will clear existing data and import fresh from uploaded files.</p>
 
-    <p><a href="{{ url_for('build_output') }}">View last import output</a></p>
+    <p><a href="{{ url_for('worlds.build_output') }}">View last import output</a></p>
 </div>
 
 <script>

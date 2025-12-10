@@ -14,7 +14,7 @@
         <option value="{{ t.type }}" {% if type_filter == t.type %}selected{% endif %}>{{ t.type|event_type_label }}</option>
         {% endfor %}
     </select>
-    <a href="{{ url_for('events') }}" class="btn btn-clear{% if not year_filter and not type_filter %} disabled{% endif %}">Clear</a>
+    <a href="{{ url_for('pages.events') }}" class="btn btn-clear{% if not year_filter and not type_filter %} disabled{% endif %}">Clear</a>
 </form>
 
 <script>

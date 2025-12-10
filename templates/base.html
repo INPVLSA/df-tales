@@ -54,22 +54,22 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-brand">
-                <a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='ico.png') }}" alt="" class="nav-icon nav-logo" width="23" height="20">DF Tales</a>
+                <a href="{{ url_for('worlds.index') }}"><img src="{{ url_for('static', filename='ico.png') }}" alt="" class="nav-icon nav-logo" width="23" height="20">DF Tales</a>
             </div>
             <div class="nav-links">
-                <a href="{{ url_for('figures') }}"><img src="{{ url_for('static', filename='icons/races/DWARF.png') }}" alt="" class="nav-icon">Figures</a>
+                <a href="{{ url_for('pages.figures') }}"><img src="{{ url_for('static', filename='icons/races/DWARF.png') }}" alt="" class="nav-icon">Figures</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('sites') }}"><img src="{{ url_for('static', filename='icons/sites/fortress.png') }}" alt="" class="nav-icon">Sites</a>
+                <a href="{{ url_for('pages.sites') }}"><img src="{{ url_for('static', filename='icons/sites/fortress.png') }}" alt="" class="nav-icon">Sites</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('artifacts') }}"><img src="{{ url_for('static', filename='icons/artifact.png') }}" alt="" class="nav-icon">Artifacts</a>
+                <a href="{{ url_for('pages.artifacts') }}"><img src="{{ url_for('static', filename='icons/artifact.png') }}" alt="" class="nav-icon">Artifacts</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('written_content') }}"><img src="{{ url_for('static', filename='icons/artifacts/book.png') }}" alt="" class="nav-icon">Written</a>
+                <a href="{{ url_for('pages.written_content') }}"><img src="{{ url_for('static', filename='icons/artifacts/book.png') }}" alt="" class="nav-icon">Written</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('world_map') }}"><img src="{{ url_for('static', filename='icons/map.png') }}" alt="" class="nav-icon">Map</a>
+                <a href="{{ url_for('pages.world_map') }}"><img src="{{ url_for('static', filename='icons/map.png') }}" alt="" class="nav-icon">Map</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('relations_graph') }}"><img src="{{ url_for('static', filename='icons/written/StarChart.png') }}" alt="" class="nav-icon">Graph</a>
+                <a href="{{ url_for('pages.relations_graph') }}"><img src="{{ url_for('static', filename='icons/written/StarChart.png') }}" alt="" class="nav-icon">Graph</a>
                 <span class="nav-sep"></span>
-                <a href="{{ url_for('events') }}"><img src="{{ url_for('static', filename='icons/scribe.png') }}" alt="" class="nav-icon">Events</a>
+                <a href="{{ url_for('pages.events') }}"><img src="{{ url_for('static', filename='icons/scribe.png') }}" alt="" class="nav-icon">Events</a>
             </div>
         </div>
     </nav>

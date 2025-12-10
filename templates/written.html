@@ -14,7 +14,7 @@
         <option value="{{ t.type }}" {% if type_filter == t.type %}selected{% endif %}>{{ t.type|replace('_', ' ') }}</option>
         {% endfor %}
     </select>
-    <a href="{{ url_for('written_content') }}" class="btn btn-clear{% if not search and not type_filter %} disabled{% endif %}">Clear</a>
+    <a href="{{ url_for('pages.written_content') }}" class="btn btn-clear{% if not search and not type_filter %} disabled{% endif %}">Clear</a>
 </form>
 
 <script>
