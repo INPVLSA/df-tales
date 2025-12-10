@@ -536,9 +536,40 @@ def format_event_type(event_type):
 
 
 def format_event_details(event):
-    """Format event details into a human-readable description."""
+    """Format event details into a human-readable description with clickable links."""
     import json
     from markupsafe import Markup
+
+    db = get_db()
+
+    # Helper to create entity links
+    def hf_link(hfid):
+        if not hfid or not db:
+            return f"HF#{hfid}" if hfid else "?"
+        row = db.execute("SELECT name FROM historical_figures WHERE id = ?", [hfid]).fetchone()
+        name = row['name'].title() if row and row['name'] else f"HF#{hfid}"
+        return f"<a href='#' class='entity-link' data-type='figure' data-id='{hfid}'>{name}</a>"
+
+    def site_link(site_id):
+        if not site_id or not db:
+            return f"Site#{site_id}" if site_id else "?"
+        row = db.execute("SELECT name FROM sites WHERE id = ?", [site_id]).fetchone()
+        name = row['name'].title() if row and row['name'] else f"Site#{site_id}"
+        return f"<a href='#' class='entity-link' data-type='site' data-id='{site_id}'>{name}</a>"
+
+    def entity_link(entity_id):
+        if not entity_id or not db:
+            return f"Entity#{entity_id}" if entity_id else "?"
+        row = db.execute("SELECT name FROM entities WHERE id = ?", [entity_id]).fetchone()
+        name = row['name'].title() if row and row['name'] else f"Entity#{entity_id}"
+        return f"<a href='#' class='entity-link' data-type='entity' data-id='{entity_id}'>{name}</a>"
+
+    def artifact_link(artifact_id):
+        if not artifact_id or not db:
+            return f"Artifact#{artifact_id}" if artifact_id else "?"
+        row = db.execute("SELECT name FROM artifacts WHERE id = ?", [artifact_id]).fetchone()
+        name = row['name'].title() if row and row['name'] else f"Artifact#{artifact_id}"
+        return f"<a href='#' class='entity-link' data-type='artifact' data-id='{artifact_id}'>{name}</a>"
 
     event_type = event['type'] or ''
     normalized_type = event_type.replace(' ', '_')
@@ -564,71 +595,71 @@ def format_event_details(event):
         link_type = extra.get('link_type')
         if hfid and link_type:
             if link_type == 'lair':
-                parts.append(f"HF#{hfid} established a lair at Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} established a lair at {site_link(site_id)}")
             elif link_type == 'home_site_realization_building':
-                parts.append(f"HF#{hfid} moved into building at Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} moved into building at {site_link(site_id)}")
             elif link_type == 'seat_of_power':
-                parts.append(f"HF#{hfid} claimed seat of power at Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} claimed seat of power at {site_link(site_id)}")
             elif link_type == 'occupation':
-                parts.append(f"HF#{hfid} occupied Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} occupied {site_link(site_id)}")
             elif link_type == 'home_site_abstract_building':
-                parts.append(f"HF#{hfid} took residence at Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} took residence at {site_link(site_id)}")
             elif link_type == 'hangout':
-                parts.append(f"HF#{hfid} started hanging out at Site#{site_id}")
+                parts.append(f"{hf_link(hfid)} started hanging out at {site_link(site_id)}")
             else:
-                parts.append(f"HF#{hfid} linked to Site#{site_id} ({link_type.replace('_', ' ')})")
+                parts.append(f"{hf_link(hfid)} linked to {site_link(site_id)} ({link_type.replace('_', ' ')})")
         elif site_id:
-            parts.append(f"<span class='detail-limited'>Site#{site_id}</span>")
+            parts.append(f"<span class='detail-limited'>{site_link(site_id)}</span>")
 
     elif normalized_type == 'remove_hf_site_link':
         link_type = extra.get('link_type')
         if hfid and link_type:
-            parts.append(f"HF#{hfid} left Site#{site_id} ({link_type.replace('_', ' ')})")
+            parts.append(f"{hf_link(hfid)} left {site_link(site_id)} ({link_type.replace('_', ' ')})")
         elif site_id:
-            parts.append(f"<span class='detail-limited'>Site#{site_id}</span>")
+            parts.append(f"<span class='detail-limited'>{site_link(site_id)}</span>")
 
     elif normalized_type == 'add_hf_entity_link':
         link_type = extra.get('link_type')
         if hfid and link_type:
             if link_type == 'member':
-                parts.append(f"HF#{hfid} joined Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} joined {entity_link(civ_id)}")
             elif link_type == 'position':
                 position = extra.get('position', 'a position')
-                parts.append(f"HF#{hfid} took {position} in Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} took {position} in {entity_link(civ_id)}")
             elif link_type == 'former member':
-                parts.append(f"HF#{hfid} was former member of Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} was former member of {entity_link(civ_id)}")
             elif link_type == 'prisoner':
-                parts.append(f"HF#{hfid} imprisoned by Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} imprisoned by {entity_link(civ_id)}")
             elif link_type == 'enemy':
-                parts.append(f"HF#{hfid} became enemy of Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} became enemy of {entity_link(civ_id)}")
             elif link_type == 'slave':
-                parts.append(f"HF#{hfid} enslaved by Entity#{civ_id}")
+                parts.append(f"{hf_link(hfid)} enslaved by {entity_link(civ_id)}")
             else:
-                parts.append(f"HF#{hfid} linked to Entity#{civ_id} ({link_type.replace('_', ' ')})")
+                parts.append(f"{hf_link(hfid)} linked to {entity_link(civ_id)} ({link_type.replace('_', ' ')})")
         elif civ_id:
-            parts.append(f"<span class='detail-limited'>Entity#{civ_id}</span>")
+            parts.append(f"<span class='detail-limited'>{entity_link(civ_id)}</span>")
 
     elif normalized_type == 'remove_hf_entity_link':
         link_type = extra.get('link_type')
         if hfid and link_type:
-            parts.append(f"HF#{hfid} left Entity#{civ_id} ({link_type.replace('_', ' ')})")
+            parts.append(f"{hf_link(hfid)} left {entity_link(civ_id)} ({link_type.replace('_', ' ')})")
         elif civ_id:
-            parts.append(f"<span class='detail-limited'>Entity#{civ_id}</span>")
+            parts.append(f"<span class='detail-limited'>{entity_link(civ_id)}</span>")
 
     elif normalized_type == 'hist_figure_died':
         cause = event['death_cause'] or extra.get('death_cause')
         slayer = event['slayer_hfid'] or extra.get('slayer_hfid')
         if hfid:
             if slayer:
-                parts.append(f"HF#{hfid} killed by HF#{slayer}")
+                parts.append(f"{hf_link(hfid)} killed by {hf_link(slayer)}")
             else:
-                parts.append(f"HF#{hfid} died")
+                parts.append(f"{hf_link(hfid)} died")
             if cause:
                 parts.append(f"({cause.replace('_', ' ')})")
             if site_id:
-                parts.append(f"at Site#{site_id}")
+                parts.append(f"at {site_link(site_id)}")
         elif site_id:
-            parts.append(f"<span class='detail-limited'>Site#{site_id}</span>")
+            parts.append(f"<span class='detail-limited'>{site_link(site_id)}</span>")
 
     elif normalized_type == 'add_hf_hf_link':
         hfid1 = extra.get('hfid1') or extra.get('hf') or hfid
@@ -636,20 +667,20 @@ def format_event_details(event):
         link_type = extra.get('link_type')
         if hfid1 and hfid2:
             rel = link_type.replace('_', ' ') if link_type else 'relationship'
-            parts.append(f"HF#{hfid1} and HF#{hfid2} formed {rel}")
+            parts.append(f"{hf_link(hfid1)} and {hf_link(hfid2)} formed {rel}")
         else:
             parts.append("<span class='detail-limited'>-</span>")
 
     elif normalized_type == 'artifact_created':
-        artifact_id = event['artifact_id'] or extra.get('artifact_id')
-        if hfid and artifact_id:
-            parts.append(f"HF#{hfid} created Artifact#{artifact_id}")
+        art_id = event['artifact_id'] or extra.get('artifact_id')
+        if hfid and art_id:
+            parts.append(f"{hf_link(hfid)} created {artifact_link(art_id)}")
             if site_id:
-                parts.append(f"at Site#{site_id}")
-        elif artifact_id:
-            parts.append(f"Artifact#{artifact_id} created")
+                parts.append(f"at {site_link(site_id)}")
+        elif art_id:
+            parts.append(f"{artifact_link(art_id)} created")
             if site_id:
-                parts.append(f"at Site#{site_id}")
+                parts.append(f"at {site_link(site_id)}")
         else:
             parts.append("<span class='detail-limited'>-</span>")
 
@@ -657,66 +688,66 @@ def format_event_details(event):
         state = event['state'] or extra.get('state')
         reason = event['reason'] or extra.get('reason')
         if hfid and state:
-            parts.append(f"HF#{hfid} became {state.replace('_', ' ')}")
+            parts.append(f"{hf_link(hfid)} became {state.replace('_', ' ')}")
             if site_id:
-                parts.append(f"at Site#{site_id}")
+                parts.append(f"at {site_link(site_id)}")
             if reason:
                 parts.append(f"({reason.replace('_', ' ')})")
         elif site_id:
-            parts.append(f"<span class='detail-limited'>Site#{site_id}</span>")
+            parts.append(f"<span class='detail-limited'>{site_link(site_id)}</span>")
 
     elif normalized_type == 'change_hf_job':
         new_job = extra.get('new_job')
         old_job = extra.get('old_job')
         if hfid and new_job:
             if old_job:
-                parts.append(f"HF#{hfid} changed from {old_job.replace('_', ' ')} to {new_job.replace('_', ' ')}")
+                parts.append(f"{hf_link(hfid)} changed from {old_job.replace('_', ' ')} to {new_job.replace('_', ' ')}")
             else:
-                parts.append(f"HF#{hfid} became {new_job.replace('_', ' ')}")
+                parts.append(f"{hf_link(hfid)} became {new_job.replace('_', ' ')}")
             if site_id:
-                parts.append(f"at Site#{site_id}")
+                parts.append(f"at {site_link(site_id)}")
         elif site_id:
-            parts.append(f"<span class='detail-limited'>Site#{site_id}</span>")
+            parts.append(f"<span class='detail-limited'>{site_link(site_id)}</span>")
 
     elif normalized_type == 'created_site':
         site_civ_id = extra.get('site_civ_id')
         if civ_id and site_id:
-            parts.append(f"Entity#{civ_id} founded Site#{site_id}")
+            parts.append(f"{entity_link(civ_id)} founded {site_link(site_id)}")
         elif site_id:
-            parts.append(f"Site#{site_id} founded")
+            parts.append(f"{site_link(site_id)} founded")
 
     elif normalized_type == 'created_building' or normalized_type == 'created_structure':
         structure_id = event['structure_id'] or extra.get('structure_id')
         if hfid and structure_id:
-            parts.append(f"HF#{hfid} built Structure#{structure_id}")
+            parts.append(f"{hf_link(hfid)} built Structure#{structure_id}")
         elif structure_id:
             parts.append(f"Structure#{structure_id} built")
         if site_id:
-            parts.append(f"at Site#{site_id}")
+            parts.append(f"at {site_link(site_id)}")
 
     elif normalized_type == 'hf_destroyed_site':
         if hfid and site_id:
-            parts.append(f"HF#{hfid} destroyed Site#{site_id}")
+            parts.append(f"{hf_link(hfid)} destroyed {site_link(site_id)}")
         elif site_id:
-            parts.append(f"Site#{site_id} destroyed")
+            parts.append(f"{site_link(site_id)} destroyed")
 
     elif normalized_type == 'hf_attacked_site':
         if hfid and site_id:
-            parts.append(f"HF#{hfid} attacked Site#{site_id}")
+            parts.append(f"{hf_link(hfid)} attacked {site_link(site_id)}")
         elif site_id:
-            parts.append(f"Site#{site_id} attacked")
+            parts.append(f"{site_link(site_id)} attacked")
 
     else:
-        # Generic fallback - show available IDs
+        # Generic fallback - show available IDs with links
         shown = []
         if hfid:
-            shown.append(f"HF#{hfid}")
+            shown.append(hf_link(hfid))
         if site_id:
-            shown.append(f"Site#{site_id}")
+            shown.append(site_link(site_id))
         if civ_id:
-            shown.append(f"Civ#{civ_id}")
-        if entity_id:
-            shown.append(f"Entity#{entity_id}")
+            shown.append(entity_link(civ_id))
+        if entity_id and entity_id != civ_id:
+            shown.append(entity_link(entity_id))
         # Show any interesting extra data
         for key in ['link_type', 'state', 'reason', 'cause', 'interaction']:
             if key in extra and extra[key]:
