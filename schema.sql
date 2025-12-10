@@ -230,3 +230,20 @@ CREATE TABLE IF NOT EXISTS written_content_references (
     FOREIGN KEY (written_content_id) REFERENCES written_content(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_wcr_content ON written_content_references(written_content_id);
+
+-- Rivers
+CREATE TABLE IF NOT EXISTS rivers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    path TEXT,
+    end_pos TEXT
+);
+
+-- World constructions (roads, bridges, tunnels)
+CREATE TABLE IF NOT EXISTS world_constructions (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    type TEXT,
+    coords TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_wc_type ON world_constructions(type);

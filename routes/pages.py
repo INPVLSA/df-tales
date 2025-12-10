@@ -431,9 +431,76 @@ def world_map():
         map_path = DATA_DIR / 'worlds' / f'{world_id}_map.png'
         has_map = terrain_path.exists() or map_path.exists()
 
+    # Get rivers for overlay (only significant rivers with >= 5 segments)
+    MIN_RIVER_SEGMENTS = 5
+    rivers_list = []
+    try:
+        rivers_data = db.execute("SELECT name, path, end_pos FROM rivers").fetchall()
+        for row in rivers_data:
+            river = dict(row)
+            path = river.get('path', '')
+            if not path:
+                continue
+            # Parse path segments
+            segments = []
+            for segment in path.split('|'):
+                if not segment.strip():
+                    continue
+                parts = segment.split(',')
+                if len(parts) >= 4:
+                    try:
+                        x, y, width = int(parts[0]), int(parts[1]), int(parts[3])
+                        segments.append({'x': x, 'y': y, 'w': width})
+                    except ValueError:
+                        continue
+            # Only include rivers with enough segments
+            if len(segments) >= MIN_RIVER_SEGMENTS:
+                # Add end position
+                end_pos = river.get('end_pos', '')
+                if end_pos and ',' in end_pos:
+                    try:
+                        ex, ey = end_pos.split(',')
+                        segments.append({'x': int(ex), 'y': int(ey), 'w': 4})
+                    except ValueError:
+                        pass
+                rivers_list.append({
+                    'name': river.get('name'),
+                    'segments': segments
+                })
+    except Exception:
+        pass  # Table may not exist
+
+    # Get world constructions (roads, tunnels, bridges)
+    roads_list = []
+    try:
+        roads_data = db.execute("SELECT name, type, coords FROM world_constructions").fetchall()
+        for row in roads_data:
+            road = dict(row)
+            coords_str = road.get('coords', '')
+            if not coords_str:
+                continue
+            points = []
+            for pair in coords_str.split('|'):
+                if ',' in pair:
+                    try:
+                        x, y = pair.split(',')[:2]
+                        points.append({'x': int(x), 'y': int(y)})
+                    except ValueError:
+                        continue
+            if points:
+                roads_list.append({
+                    'name': road.get('name'),
+                    'type': road.get('type'),
+                    'points': points
+                })
+    except Exception:
+        pass  # Table may not exist
+
     return render_template('map.html',
                          sites=sites_list,
                          peaks=peaks_list,
+                         rivers=rivers_list,
+                         roads=roads_list,
                          min_x=min_x,
                          min_y=min_y,
                          map_width=map_width,
@@ -441,6 +508,8 @@ def world_map():
                          type_counts=type_counts,
                          total_sites=len(sites_list),
                          total_peaks=len(peaks_list),
+                         total_rivers=len(rivers_list),
+                         total_roads=len([r for r in roads_list if r['type'] == 'road']),
                          has_map=has_map,
                          world_id=world_id,
                          world=current_world)

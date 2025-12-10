@@ -298,11 +298,143 @@ def parse_coords(coords_str):
     for pair in coords_str.split('|'):
         if ',' in pair:
             try:
-                x, y = pair.split(',')
+                x, y = pair.split(',')[:2]  # Take first two values (x, y)
                 coords.append((int(x), int(y)))
             except ValueError:
                 continue
     return coords
+
+
+def parse_river_path(path_str):
+    """Parse river path string into list of (x, y, width) tuples.
+
+    River path format: x,y,?,width,?|x,y,?,width,?|...
+    """
+    if not path_str:
+        return []
+
+    segments = []
+    for segment in path_str.split('|'):
+        if not segment.strip():
+            continue
+        parts = segment.split(',')
+        if len(parts) >= 4:
+            try:
+                x = int(parts[0])
+                y = int(parts[1])
+                width = int(parts[3])  # Width appears to be the 4th value
+                segments.append((x, y, width))
+            except ValueError:
+                continue
+    return segments
+
+
+def draw_river_on_map(img, river_segments, min_x, min_y, tile_size):
+    """Draw a river on the terrain map.
+
+    Args:
+        img: PIL Image to draw on
+        river_segments: List of (x, y, width) tuples
+        min_x, min_y: World coordinate offsets
+        tile_size: Pixels per tile
+    """
+    from PIL import ImageDraw
+
+    if not river_segments:
+        return
+
+    draw = ImageDraw.Draw(img)
+
+    # River colors - lighter blue for narrow rivers, darker for wide
+    RIVER_COLOR_NARROW = (100, 149, 237, 220)  # Cornflower blue
+    RIVER_COLOR_WIDE = (65, 105, 225, 230)     # Royal blue
+
+    # Draw river segments
+    for i in range(len(river_segments)):
+        x, y, width = river_segments[i]
+
+        # Convert world coords to pixel coords (center of tile)
+        px = (x - min_x) * tile_size + tile_size // 2
+        py = (y - min_y) * tile_size + tile_size // 2
+
+        # Scale width based on data (width seems to be 4-12+, scale to 2-8 pixels)
+        line_width = max(2, min(8, width // 2))
+
+        # Determine color based on width
+        color = RIVER_COLOR_WIDE if width > 8 else RIVER_COLOR_NARROW
+
+        # Draw line to next segment if exists
+        if i + 1 < len(river_segments):
+            next_x, next_y, _ = river_segments[i + 1]
+            next_px = (next_x - min_x) * tile_size + tile_size // 2
+            next_py = (next_y - min_y) * tile_size + tile_size // 2
+            draw.line([(px, py), (next_px, next_py)], fill=color, width=line_width)
+        else:
+            # Draw a small circle at the end
+            r = line_width // 2
+            draw.ellipse([(px - r, py - r), (px + r, py + r)], fill=color)
+
+
+def draw_road_on_map(img, coords, road_type, min_x, min_y, tile_size):
+    """Draw a road/tunnel/bridge on the terrain map.
+
+    Args:
+        img: PIL Image to draw on
+        coords: List of (x, y) tuples
+        road_type: 'road', 'bridge', or 'tunnel'
+        min_x, min_y: World coordinate offsets
+        tile_size: Pixels per tile
+    """
+    from PIL import ImageDraw
+
+    if not coords or len(coords) < 1:
+        return
+
+    draw = ImageDraw.Draw(img)
+
+    # Colors and styles for different construction types
+    ROAD_COLOR = (139, 119, 101, 200)    # Tan/brown for roads
+    TUNNEL_COLOR = (90, 90, 90, 180)     # Dark gray for tunnels
+    BRIDGE_COLOR = (160, 82, 45, 220)    # Sienna for bridges
+
+    if road_type == 'road':
+        color = ROAD_COLOR
+        line_width = 3
+    elif road_type == 'tunnel':
+        color = TUNNEL_COLOR
+        line_width = 4
+    elif road_type == 'bridge':
+        color = BRIDGE_COLOR
+        line_width = 4
+    else:
+        color = ROAD_COLOR
+        line_width = 2
+
+    # Convert coords to pixel positions
+    points = []
+    for x, y in coords:
+        px = (x - min_x) * tile_size + tile_size // 2
+        py = (y - min_y) * tile_size + tile_size // 2
+        points.append((px, py))
+
+    # Draw the path
+    if len(points) == 1:
+        # Single point (like a bridge) - draw a small square
+        px, py = points[0]
+        size = line_width + 2
+        draw.rectangle([(px - size, py - size), (px + size, py + size)], fill=color)
+    else:
+        # Multiple points - draw connected lines
+        for i in range(len(points) - 1):
+            draw.line([points[i], points[i + 1]], fill=color, width=line_width)
+
+    # For tunnels, add a dashed effect by overlaying darker spots
+    if road_type == 'tunnel' and len(points) > 1:
+        darker = (60, 60, 60, 150)
+        for i, (px, py) in enumerate(points):
+            if i % 2 == 0:  # Every other point
+                r = 2
+                draw.ellipse([(px - r, py - r), (px + r, py + r)], fill=darker)
 
 
 def get_world_bounds(cursor):
@@ -453,10 +585,13 @@ def generate_terrain_map(db_path, output_path=None, tile_size=DEFAULT_TILE_SIZE)
                 terrain_map.paste(tile_img, (px, py))
             tile_count += 1
 
-    conn.close()
-
     print(f"  Processed {region_count} regions, {tile_count} tiles")
     print(f"  Evilness breakdown: {evilness_stats}")
+
+    # Note: Rivers and roads are now drawn dynamically in the web UI
+    # via canvas overlay with toggle controls (see map.html)
+
+    conn.close()
 
     # Save image
     print(f"  Saving to: {output_path}")

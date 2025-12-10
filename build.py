@@ -492,6 +492,28 @@ def run_import(legends_path=None, plus_path=None):
             count = stream_elements(legends_plus_clean, 'creature', import_creature)
             conn.commit()
             print(f"  Imported {count} creature definitions.")
+
+            # Rivers
+            print("\nImporting rivers...")
+            def import_river(data):
+                cursor.execute(
+                    "INSERT INTO rivers (name, path, end_pos) VALUES (?, ?, ?)",
+                    (data.get('name'), data.get('path'), data.get('end_pos'))
+                )
+            count = stream_elements(legends_plus_clean, 'river', import_river)
+            conn.commit()
+            print(f"  Imported {count} rivers.")
+
+            # World constructions (roads, bridges, tunnels)
+            print("\nImporting world constructions...")
+            def import_world_construction(data):
+                cursor.execute(
+                    "INSERT OR REPLACE INTO world_constructions (id, name, type, coords) VALUES (?, ?, ?, ?)",
+                    (data.get('id'), data.get('name'), data.get('type'), data.get('coords'))
+                )
+            count = stream_elements(legends_plus_clean, 'world_construction', import_world_construction)
+            conn.commit()
+            print(f"  Imported {count} world constructions.")
         else:
             print("\n--- Skipping legends_plus.xml data (file not found) ---")
             print("  Skipped: landmasses, mountain peaks, structures, entities, creatures")
@@ -893,6 +915,28 @@ def run_merge_plus(world_id, db_path, plus_path):
         count = stream_elements(legends_plus_clean, 'creature', import_creature)
         conn.commit()
         print(f"  Imported {count} creature definitions.")
+
+        # Rivers
+        print("\nImporting rivers...")
+        def import_river(data):
+            cursor.execute(
+                "INSERT INTO rivers (name, path, end_pos) VALUES (?, ?, ?)",
+                (data.get('name'), data.get('path'), data.get('end_pos'))
+            )
+        count = stream_elements(legends_plus_clean, 'river', import_river)
+        conn.commit()
+        print(f"  Imported {count} rivers.")
+
+        # World constructions (roads, bridges, tunnels)
+        print("\nImporting world constructions...")
+        def import_world_construction(data):
+            cursor.execute(
+                "INSERT OR REPLACE INTO world_constructions (id, name, type, coords) VALUES (?, ?, ?, ?)",
+                (data.get('id'), data.get('name'), data.get('type'), data.get('coords'))
+            )
+        count = stream_elements(legends_plus_clean, 'world_construction', import_world_construction)
+        conn.commit()
+        print(f"  Imported {count} world constructions.")
 
         # Relationships
         print("\nImporting relationships...")

@@ -22,6 +22,7 @@
         <div class="legend-tabs">
             <button class="legend-tab active" data-tab="sites">Sites</button>
             <button class="legend-tab" data-tab="peaks">Peaks</button>
+            <button class="legend-tab" data-tab="overlays">Overlays</button>
         </div>
 
         <div class="legend-tab-content" id="tab-sites">
@@ -71,11 +72,29 @@
                 {% endfor %}
             </div>
         </div>
+
+        <div class="legend-tab-content" id="tab-overlays" style="display: none;">
+            <div class="legend-items">
+                <label class="legend-item">
+                    <input type="checkbox" checked id="toggle-rivers" class="legend-toggle overlay-toggle">
+                    <span class="legend-icon-text" style="color: #4169e1;">~</span>
+                    <span class="legend-label">Rivers</span>
+                    <span class="legend-count">({{ total_rivers }})</span>
+                </label>
+                <label class="legend-item">
+                    <input type="checkbox" checked id="toggle-roads" class="legend-toggle overlay-toggle">
+                    <span class="legend-icon-text" style="color: #8b7765;">-</span>
+                    <span class="legend-label">Roads</span>
+                    <span class="legend-count">({{ total_roads }})</span>
+                </label>
+            </div>
+        </div>
     </div>
 
     <div class="map-viewport" id="map-viewport" style="aspect-ratio: {{ map_width }} / {{ map_height }};">
         <div class="map-canvas{% if has_map %} has-bg{% endif %}" id="map-canvas"
              {% if has_map %}style="background-image: url('{{ url_for('worlds.world_map_image', world_id=world_id) }}');"{% endif %}>
+            <canvas id="overlay-canvas" class="map-overlay-canvas"></canvas>
             {% for site in sites %}
             <div class="map-marker site-marker type-{{ site.type|replace(' ', '-') }}"
                  data-id="{{ site.id }}"
@@ -499,6 +518,147 @@
 
     // Run on page load
     handleHashNavigation();
+
+    // === River and Road Overlay ===
+    var overlayCanvas = document.getElementById('overlay-canvas');
+    var ctx = overlayCanvas.getContext('2d');
+
+    // River and road data from server
+    var rivers = {{ rivers|tojson }};
+    var roads = {{ roads|tojson }};
+
+    // Overlay visibility state
+    var showRivers = true;
+    var showRoads = true;
+
+    // Tile size matches terrain map generation (32px per tile)
+    var tileSize = 32;
+    var canvasWidth = mapWidth * tileSize;
+    var canvasHeight = mapHeight * tileSize;
+
+    // Set canvas size to match terrain map resolution
+    function resizeOverlayCanvas() {
+        overlayCanvas.width = canvasWidth;
+        overlayCanvas.height = canvasHeight;
+        drawOverlays();
+    }
+
+    // Convert world coords to canvas pixels (matching terrain map generator)
+    function worldToCanvas(x, y) {
+        var px = (x - minX) * tileSize + tileSize / 2;
+        var py = (y - minY) * tileSize + tileSize / 2;
+        return [px, py];
+    }
+
+    // Draw all overlays
+    function drawOverlays() {
+        ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+        if (showRivers) {
+            drawRivers();
+        }
+        if (showRoads) {
+            drawRoads();
+        }
+    }
+
+    // Draw rivers
+    function drawRivers() {
+        rivers.forEach(function(river) {
+            var segments = river.segments;
+            if (!segments || segments.length < 2) return;
+
+            // Draw each segment individually to allow varying widths
+            for (var i = 0; i < segments.length - 1; i++) {
+                var seg = segments[i];
+                var nextSeg = segments[i + 1];
+                var pos = worldToCanvas(seg.x, seg.y);
+                var nextPos = worldToCanvas(nextSeg.x, nextSeg.y);
+
+                // Line width based on river width (scale 2-13 to 1-4 pixels at full resolution)
+                var lineWidth = 1 + (seg.w / 13) * 3;
+
+                // Color based on width
+                var color = seg.w > 8
+                    ? 'rgba(65, 105, 225, 0.8)'   // Royal blue for wide
+                    : 'rgba(100, 149, 237, 0.7)'; // Cornflower for narrow
+
+                ctx.beginPath();
+                ctx.lineWidth = lineWidth;
+                ctx.strokeStyle = color;
+                ctx.lineCap = 'round';
+                ctx.moveTo(pos[0], pos[1]);
+                ctx.lineTo(nextPos[0], nextPos[1]);
+                ctx.stroke();
+            }
+        });
+    }
+
+    // Draw roads, tunnels, bridges
+    function drawRoads() {
+        roads.forEach(function(road) {
+            var points = road.points;
+            if (!points || points.length < 1) return;
+
+            var roadType = road.type;
+            ctx.beginPath();
+
+            // Style based on type
+            if (roadType === 'road') {
+                ctx.strokeStyle = 'rgba(139, 119, 101, 0.8)';
+                ctx.lineWidth = 2;
+            } else if (roadType === 'tunnel') {
+                ctx.strokeStyle = 'rgba(90, 90, 90, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+            } else if (roadType === 'bridge') {
+                ctx.strokeStyle = 'rgba(160, 82, 45, 0.9)';
+                ctx.lineWidth = 3;
+            }
+
+            if (points.length === 1) {
+                // Single point (bridge) - draw a small square
+                var pos = worldToCanvas(points[0].x, points[0].y);
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillRect(pos[0] - 3, pos[1] - 3, 6, 6);
+            } else {
+                // Multiple points - draw line
+                for (var i = 0; i < points.length; i++) {
+                    var pos = worldToCanvas(points[i].x, points[i].y);
+                    if (i === 0) {
+                        ctx.moveTo(pos[0], pos[1]);
+                    } else {
+                        ctx.lineTo(pos[0], pos[1]);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            // Reset line dash
+            ctx.setLineDash([]);
+        });
+    }
+
+    // Toggle handlers
+    document.getElementById('toggle-rivers').addEventListener('change', function() {
+        showRivers = this.checked;
+        drawOverlays();
+    });
+
+    document.getElementById('toggle-roads').addEventListener('change', function() {
+        showRoads = this.checked;
+        drawOverlays();
+    });
+
+    // Initialize canvas on load
+    setTimeout(function() {
+        resizeOverlayCanvas();
+    }, 100);
+
+    // Redraw on window resize
+    window.addEventListener('resize', function() {
+        resizeOverlayCanvas();
+    });
 })();
 </script>
 {% endblock %}
